@@ -4,6 +4,12 @@ Status: Produktidee für ein leichtgewichtiges MVP
 Zielumgebung: Web-Anwendung auf Cloudflare  
 Primärer Einsatzfall: private Koch-Challenge im Urlaub
 
+## Dokumentation
+
+- [Softwarearchitektur](docs/architecture.md)
+- [UI-Konzept](docs/ui-concept.md)
+- [Grafischer UI-Entwurf](docs/ui-concept.svg)
+
 ## 1. Produktidee in einem Satz
 
 Voting begleitet eine private Koch-Challenge: Nach jedem Kochabend bewerten die Captains der anderen Teams das Essen in wenigen, passenden Kategorien; bis zur gemeinsamen Siegerehrung bleiben alle Ergebnisse verborgen.
