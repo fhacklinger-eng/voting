@@ -1,4 +1,5 @@
 export interface ErrorDetails {
+  fieldErrors?: Record<string, string>;
   missingVoters?: Array<{
     voterId: string;
     role: "captain" | "jury";
@@ -59,6 +60,13 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
         ? error.message
         : "Das hat gerade nicht funktioniert. Bitte versuche es erneut.",
       {
+        fieldErrors:
+          error.fieldErrors && typeof error.fieldErrors === "object"
+            ? Object.fromEntries(
+                Object.entries(error.fieldErrors as Record<string, unknown>)
+                  .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+              )
+            : undefined,
         missingVoters: Array.isArray(error.missingVoters)
           ? error.missingVoters.filter((voter): voter is NonNullable<ErrorDetails["missingVoters"]>[number] => {
               if (!voter || typeof voter !== "object") return false;
