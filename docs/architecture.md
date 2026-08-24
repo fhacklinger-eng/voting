@@ -16,7 +16,7 @@ Es gibt bewusst keine getrennten Cloudflare-Projekte für Frontend und API und k
 
 Die Architektur soll:
 
-- den vollständigen Ablauf aus den Issues #1 bis #8 abbilden;
+- den vollständigen Ablauf aus den Issues #1 bis #13 abbilden;
 - auf aktuellen Smartphones schnell und ohne Installation funktionieren;
 - geheime Zugänge und verborgene Zwischenstände serverseitig schützen;
 - Bewertungen und Zustandswechsel konsistent speichern;
@@ -39,6 +39,7 @@ Nicht Bestandteil des MVP sind:
 ```mermaid
 flowchart TD
     C["Captain"] --> W["Cloudflare Worker"]
+    J["Jury"] --> W
     O["Organisator"] --> W
     W --> UI["React SPA / Static Assets"]
     W --> API["API, Authentifizierung und Fachlogik"]
@@ -86,6 +87,7 @@ Zugangsdaten werden im URL-Fragment übertragen, zum Beispiel:
 
 - `https://.../#/access/admin/<token>`
 - `https://.../#/access/captain/<captain-id>.<signature>`
+- `https://.../#/access/jury/<jury-id>.<signature>`
 
 Das Fragment wird beim initialen HTTP-Aufruf nicht an den Worker übertragen. Die SPA liest es aus und sendet es einmalig per `POST /api/session/exchange` an die API. Bei erfolgreicher Prüfung setzt der Worker ein signiertes Session-Cookie und entfernt anschließend das Fragment mit `history.replaceState` aus der sichtbaren URL.
 
@@ -95,22 +97,24 @@ Das Fragment wird beim initialen HTTP-Aufruf nicht an den Worker übertragen. Di
 - Der Vergleich erfolgt serverseitig und zeitkonstant.
 - Der Schlüssel wird weder in D1 noch im Repository gespeichert.
 
-### 5.3 Captains
+### 5.3 Stimmberechtigte
 
-Captain-Links werden mit HMAC aus Challenge-ID, Team-ID und einer Token-Version signiert. Der Schlüssel dafür ist `AUTH_SIGNING_SECRET`.
+Captain- und Jury-Links werden mit HMAC aus Rolle, Challenge-ID, Wähler-ID und einer Token-Version signiert. Der Schlüssel dafür ist `AUTH_SIGNING_SECRET`. Captain-Wähler verwenden weiterhin die Team-ID und das vorhandene Tokenformat; dadurch bleiben vor der Migration erzeugte Captain-Links unverändert gültig.
 
 Dadurch:
 
 - sind die Links praktisch nicht erratbar;
 - können sie nach einem erneuten Laden identisch rekonstruiert werden;
-- müssen keine Captain-Token im Klartext gespeichert werden;
+- müssen keine Zugangstoken im Klartext gespeichert werden;
 - ist keine zusätzliche Token-Tabelle erforderlich.
 
-Eine Sperrung oder Rotation einzelner Captain-Links bleibt entsprechend den Requirements außerhalb des MVP.
+QR-Codes werden ausschließlich im Admin-Browser aus dem bereits geladenen persönlichen Link erzeugt. Weder Link noch Token werden an einen QR-Dienst übertragen.
+
+Eine Sperrung oder Rotation einzelner Links bleibt entsprechend den Requirements außerhalb des MVP. Wird ein Jury-Mitglied während der Vorbereitung entfernt, ist dessen Link aufgrund der serverseitigen Wählerprüfung sofort ungültig.
 
 ### 5.4 Session
 
-Das Session-Cookie enthält nur Rolle, Challenge-ID, bei Captains die Team-ID, Ablaufzeit und Signatur. Empfohlene Attribute:
+Das Session-Cookie enthält nur Sessionrolle, Wählerrolle, Challenge-ID, Wähler-ID, bei Captains zusätzlich die Team-ID, Ablaufzeit und Signatur. Sessions aus dem bisherigen Captain-Format werden weiterhin gelesen und auf das gemeinsame Wählermodell abgebildet. Empfohlene Attribute:
 
 - `HttpOnly`
 - `Secure`
@@ -136,9 +140,10 @@ Weitere Maßnahmen:
 |---|---|
 | `challenges` | ID, Name, Status `preparation/running/revealed`, `revealed_at`, Zeitstempel |
 | `categories` | ID, Challenge-ID, Position 1–5, Name, Leitfrage; Position und Name je Challenge eindeutig |
-| `teams` | ID, Challenge-ID, Teamname, normalisierter Namensschlüssel, Captain-Anzeigename; Teamname je Challenge eindeutig |
+| `teams` | ID, Challenge-ID, Teamname, normalisierter Namensschlüssel, bisheriges Captain-Anzeigenamefeld zur abwärtskompatiblen Datenhaltung; Teamname je Challenge eindeutig |
+| `voters` | ID, Challenge-ID, Rolle `captain/jury`, Anzeigename, normalisierter Name, optionale Team-ID; genau ein Captain je Team, Jury-Namen je Challenge eindeutig |
 | `dinners` | ID, Challenge-ID, Team-ID, Kalenderdatum, Status `upcoming/open/closed`; genau ein Dinner je Team |
-| `ballots` | ID, Dinner-ID, bewertende Team-ID, Zeitstempel; Kombination aus Dinner und bewertendem Team eindeutig |
+| `ballots` | ID, Dinner-ID, Wähler-ID, abwärtskompatible optionale Captain-Team-ID, Zeitstempel; Kombination aus Dinner und Wähler eindeutig |
 | `ratings` | Ballot-ID, Kategorie-ID, Punktwert mit `CHECK (score BETWEEN 1 AND 5)`; Kombination aus Ballot und Kategorie eindeutig |
 
 Alle IDs werden serverseitig als nicht erratbare UUIDs erzeugt. Kochtermine werden als lokales Kalenderdatum im Format `YYYY-MM-DD` ohne Uhrzeit gespeichert.
@@ -150,10 +155,10 @@ Soweit möglich werden Regeln zusätzlich durch Fremdschlüssel, `UNIQUE`- und `
 Besonders wichtig:
 
 - partieller eindeutiger Index auf `dinners(challenge_id)` für `status = 'open'`;
-- genau ein Ballot je Captain-Team und Dinner;
+- genau ein Ballot je Wähler und Dinner;
 - genau ein Rating je Ballot und Kategorie;
 - eine vollständige Bewertung wird atomar geschrieben;
-- Selbstbewertung und exakt fünf aktive Kategorien werden in der Domänenlogik geprüft;
+- Captain-Selbstbewertung, Jury-Berechtigung für jeden Abend und exakt fünf aktive Kategorien werden in der Domänenlogik geprüft;
 - nach `revealed` lehnen sämtliche Mutations-Endpunkte Änderungen ab.
 
 Es gibt keine Ergebnis-Tabelle. Ergebnisse werden nach der Auflösung aus den unveränderten Bewertungen berechnet. So können keine veralteten Ergebnisdaten entstehen.
@@ -165,7 +170,7 @@ Es gibt keine Ergebnis-Tabelle. Ergebnisse werden nach der Auflösung aus den un
 `preparation → running → revealed`
 
 - Das erste Öffnen eines Dinners setzt die Challenge auf `running`.
-- Ab `running` sind Teams, Captains und Kategorien gesperrt.
+- Ab `running` sind Teams, Captains, Jury und Kategorien gesperrt.
 - `revealed` ist endgültig und macht die gesamte Challenge unveränderlich.
 
 ### Dinner
@@ -192,17 +197,21 @@ Die konkrete Pfadstruktur darf bei der Umsetzung geringfügig angepasst werden. 
 
 - `GET /api/admin/challenge`
 - `PUT /api/admin/challenge`
+- `GET /api/admin/access-links`
 - `GET /api/admin/captain-links`
 - `POST /api/admin/dinners/:id/open`
 - `POST /api/admin/dinners/:id/close`
 - `POST /api/admin/dinners/:id/reopen`
 - `POST /api/admin/reveal`
 
-### Captain
+### Stimmberechtigte
 
-- `GET /api/captain/dashboard`
-- `GET /api/captain/dinners/:id/ballot`
-- `PUT /api/captain/dinners/:id/ballot`
+- `GET /api/voter/dashboard`
+- `GET /api/voter/dinners/:id/ballot`
+- `PUT /api/voter/dinners/:id/ballot`
+- `GET /api/voter/results`
+
+Die bisherigen `/api/captain/*`-Pfade bleiben vorerst als kompatible Aliase erhalten.
 
 ### Ergebnis
 
@@ -246,8 +255,8 @@ Der Worker prüft Challenge-Status, Reihenfolge und vorhandene offene Dinner. Zu
 
 Der Worker prüft:
 
-1. gültige Captain-Session;
-2. fremdes kochendes Team;
+1. gültige Captain- oder Jury-Session;
+2. bei Captains ein fremdes kochendes Team; Jury-Mitglieder dürfen jeden Abend bewerten;
 3. Dinner ist aktuell geöffnet;
 4. genau fünf Ratings;
 5. jede aktive Kategorie genau einmal;
@@ -268,7 +277,7 @@ Nach Bestätigung möglicher fehlender Stimmen wird `revealed` gesetzt. Ab diese
 
 ### Ergebnisse berechnen
 
-- Mittelwert je Team und Kategorie aus vollständigen Fremdbewertungen;
+- Mittelwert je Team und Kategorie aus vollständigen berechtigten Bewertungen; Captain- und Jury-Stimmen haben dasselbe Gewicht;
 - Gesamtscore als Mittelwert der fünf Kategorie-Scores;
 - kaufmännische Rundung auf zwei Nachkommastellen für Anzeige und Rangfolge;
 - gleicher gerundeter Wert bedeutet gleicher Rang;
@@ -332,8 +341,11 @@ Bewertungen, Token, Cookies, Namen und Request-Bodies werden nicht protokolliert
 5. **Captain-Flow (#6):** Dashboard und atomare Bewertung.
 6. **Reveal (#7):** Freigabeprüfung, Berechnung und Ergebnisansicht.
 7. **Quality Gate (#8):** Sicherheits-, Domänen- und End-to-End-Tests sowie Betriebsanleitung.
-8. **Einführungsphase:** Deployment auf `workers.dev`, manueller Abnahmelauf mit mindestens drei Teams.
-9. **Go-live:** Testdaten zurücksetzen und `voting.kivio.uk` anbinden.
+8. **Persönliche QR-Codes (#11):** lokale Darstellung für Captain- und Jury-Links.
+9. **Jury (#12):** gemeinsames Wählermodell, Jury-Konfiguration und Migration bestehender Stimmen.
+10. **Gesamterlebnis (#13):** neuer Standard und selektive Datenmigration der unveränderten bisherigen Kategorie.
+11. **Einführungsphase:** Deployment auf `workers.dev`, manueller Abnahmelauf mit mindestens drei Teams.
+12. **Go-live:** Testdaten zurücksetzen und `voting.kivio.uk` anbinden.
 
 Issue #1 bleibt das fachliche Epic; die technische Umsetzung beginnt mit #2.
 
@@ -368,7 +380,7 @@ Die Architektur sollte neu bewertet werden, wenn mehrere parallele Challenges, e
 ## 14. Verbindliche Quellen
 
 - Produktumfang und Produktentscheidungen: [README](../README.md)
-- Implementierungsanforderungen: [GitHub Issues #1–#8](https://github.com/fhacklinger-eng/voting/issues)
+- Implementierungsanforderungen: [GitHub Issues #1–#13](https://github.com/fhacklinger-eng/voting/issues)
 - UI und visuelle Leitplanken: [UI-Konzept](ui-concept.md)
 - Cloudflare-Plattform:
   - [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/)

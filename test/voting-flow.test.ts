@@ -83,7 +83,10 @@ describe("dinner control and captain voting", () => {
     expect(await withoutConfirmation.json()).toMatchObject({
       error: {
         code: "MISSING_VOTES_CONFIRMATION_REQUIRED",
-        missingCaptains: ["Ben", "Carla"],
+        missingVoters: [
+          expect.objectContaining({ displayName: "Ben", role: "captain" }),
+          expect.objectContaining({ displayName: "Carla", role: "captain" }),
+        ],
       },
     });
 
@@ -100,20 +103,20 @@ describe("dinner control and captain voting", () => {
     const benCookie = await captainCookie("Ben");
 
     const dashboardResponse = await worker.fetch(
-      apiRequest("/api/captain/dashboard", benCookie),
+      apiRequest("/api/voter/dashboard", benCookie),
       env,
     );
     const dashboardText = await dashboardResponse.text();
     expect(dashboardText).not.toContain('"score"');
     const dashboard = JSON.parse(dashboardText) as {
       dashboard: {
-        identity: { captainName: string; teamName: string };
+        identity: { displayName: string; teamName: string };
         progress: { completed: number; total: number };
         dinners: Array<{ id: string; taskStatus: string }>;
       };
     };
     expect(dashboard.dashboard.identity).toMatchObject({
-      captainName: "Ben",
+      displayName: "Ben",
       teamName: "Team Oliva",
     });
     expect(dashboard.dashboard.progress).toEqual({ completed: 0, total: 2 });
@@ -125,13 +128,13 @@ describe("dinner control and captain voting", () => {
     ).toBe("own");
 
     const ownDinner = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[1]}/ballot`, benCookie),
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[1]}/ballot`, benCookie),
       env,
     );
     expect(ownDinner.status).toBe(403);
 
     const ballotResponse = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie),
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie),
       env,
     );
     const ballot = (await ballotResponse.json()) as {
@@ -141,7 +144,7 @@ describe("dinner control and captain voting", () => {
     expect(ballot.ballot.ratings).toEqual([]);
 
     const incomplete = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -160,7 +163,7 @@ describe("dinner control and captain voting", () => {
       score: index + 1,
     }));
     const saved = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -173,7 +176,7 @@ describe("dinner control and captain voting", () => {
     expect(saved.status).toBe(200);
 
     const updated = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,11 +188,14 @@ describe("dinner control and captain voting", () => {
     expect(updated.status).toBe(200);
 
     const ballotRows = await env.DB.prepare(
-      "SELECT captain_team_id FROM ballots WHERE dinner_id = ?",
+      "SELECT captain_team_id, voter_id FROM ballots WHERE dinner_id = ?",
     )
       .bind(seeded.dinnerIds[0])
-      .all<{ captain_team_id: string }>();
-    expect(ballotRows.results).toEqual([{ captain_team_id: seeded.teamIds[1] }]);
+      .all<{ captain_team_id: string; voter_id: string }>();
+    expect(ballotRows.results).toEqual([{
+      captain_team_id: seeded.teamIds[1],
+      voter_id: seeded.teamIds[1],
+    }]);
     const ratingCount = await env.DB.prepare(
       "SELECT COUNT(*) AS count, MIN(score) AS minimum FROM ratings",
     ).first<{ count: number; minimum: number }>();
@@ -207,7 +213,7 @@ describe("dinner control and captain voting", () => {
         dinners: Array<{
           id: string;
           submittedVotes: number;
-          participants: Array<{ captainName: string; status: string }>;
+          participants: Array<{ displayName: string; status: string }>;
         }>;
       };
     };
@@ -216,16 +222,16 @@ describe("dinner control and captain voting", () => {
     )!;
     expect(currentDinner.submittedVotes).toBe(1);
     expect(currentDinner.participants).toEqual([
-      expect.objectContaining({ captainName: "Anna", status: "not_eligible" }),
-      expect.objectContaining({ captainName: "Ben", status: "submitted" }),
-      expect.objectContaining({ captainName: "Carla", status: "pending" }),
+      expect.objectContaining({ displayName: "Anna", status: "not_eligible" }),
+      expect.objectContaining({ displayName: "Ben", status: "submitted" }),
+      expect.objectContaining({ displayName: "Carla", status: "pending" }),
     ]);
 
     await postAdmin(`/api/admin/dinners/${seeded.dinnerIds[0]}/close`, {
       confirmMissing: true,
     });
     const afterClose = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ratings: validRatings }),
@@ -237,7 +243,7 @@ describe("dinner control and captain voting", () => {
     const reopened = await postAdmin(`/api/admin/dinners/${seeded.dinnerIds[0]}/reopen`);
     expect(reopened.status).toBe(200);
     const restored = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie),
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie),
       env,
     );
     const restoredBody = (await restored.json()) as {
@@ -245,6 +251,100 @@ describe("dinner control and captain voting", () => {
     };
     expect(restoredBody.ballot.ratings).toHaveLength(5);
     expect(restoredBody.ballot.ratings.every((rating) => rating.score === 5)).toBe(true);
+  });
+
+  it("lets a jury member rate every dinner with one equally counted ballot", async () => {
+    const now = "2026-08-24T10:00:00.000Z";
+    await env.DB
+      .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'jury', ?, ?, NULL, ?, ?)`,
+      )
+      .bind("jury-dora", seeded.challengeId, "Dora", "dora", now, now)
+      .run();
+
+    const initial = await worker.fetch(apiRequest("/api/admin/dashboard", adminCookie), env);
+    const initialBody = (await initial.json()) as {
+      dashboard: { dinners: Array<{ expectedVotes: number }> };
+    };
+    expect(initialBody.dashboard.dinners.map((dinner) => dinner.expectedVotes)).toEqual([3, 3, 3]);
+
+    await postAdmin(`/api/admin/dinners/${seeded.dinnerIds[0]}/open`);
+    const accessResponse = await worker.fetch(
+      apiRequest("/api/admin/access-links", adminCookie),
+      env,
+    );
+    const access = (await accessResponse.json()) as {
+      links: Array<{ role: "captain" | "jury"; displayName: string; link: string }>;
+    };
+    const jury = access.links.find((link) => link.role === "jury")!;
+    const juryCookie = await exchangeSession(
+      "jury",
+      new URL(jury.link).hash.replace("#/access/jury/", ""),
+    );
+
+    const juryDashboard = await worker.fetch(apiRequest("/api/voter/dashboard", juryCookie), env);
+    expect(await juryDashboard.json()).toMatchObject({
+      dashboard: {
+        identity: { role: "jury", displayName: "Dora", teamId: null },
+        progress: { completed: 0, total: 3 },
+        dinners: [
+          expect.objectContaining({ id: seeded.dinnerIds[0], isOwn: false, taskStatus: "open" }),
+          expect.objectContaining({ id: seeded.dinnerIds[1], isOwn: false }),
+          expect.objectContaining({ id: seeded.dinnerIds[2], isOwn: false }),
+        ],
+      },
+    });
+
+    const ballotResponse = await worker.fetch(
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, juryCookie),
+      env,
+    );
+    const ballot = (await ballotResponse.json()) as {
+      ballot: { categories: Array<{ id: string }> };
+    };
+    const ratings = ballot.ballot.categories.map((category) => ({
+      categoryId: category.id,
+      score: 4,
+    }));
+    for (const score of [4, 5]) {
+      const response = await worker.fetch(
+        apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, juryCookie, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ratings: ratings.map((rating) => ({ ...rating, score })),
+          }),
+        }),
+        env,
+      );
+      expect(response.status).toBe(200);
+    }
+
+    const stored = await env.DB
+      .prepare(
+        `SELECT COUNT(*) AS count,
+                MIN(captain_team_id) AS captain_team_id,
+                MIN(voter_id) AS voter_id
+         FROM ballots
+         WHERE dinner_id = ? AND voter_id = ?`,
+      )
+      .bind(seeded.dinnerIds[0], "jury-dora")
+      .first<{ count: number; captain_team_id: string | null; voter_id: string }>();
+    expect(stored).toEqual({ count: 1, captain_team_id: null, voter_id: "jury-dora" });
+
+    const close = await postAdmin(`/api/admin/dinners/${seeded.dinnerIds[0]}/close`, {
+      confirmMissing: false,
+    });
+    expect(close.status).toBe(409);
+    const closeBody = (await close.json()) as {
+      error: { missingVoters: Array<{ displayName: string; role: string }> };
+    };
+    expect(closeBody.error.missingVoters).toEqual([
+      expect.objectContaining({ displayName: "Ben", role: "captain" }),
+      expect.objectContaining({ displayName: "Carla", role: "captain" }),
+    ]);
   });
 
   it("never allows two concurrent reopened dinners", async () => {

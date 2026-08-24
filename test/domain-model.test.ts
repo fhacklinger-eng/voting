@@ -10,7 +10,7 @@ import { clearDomainData, seedChallenge } from "./fixtures";
 const validBallot: CompleteBallot = {
   challengeId: "challenge-1",
   dinnerId: "dinner-1",
-  captainTeamId: "team-2",
+  voterId: "team-2",
   ratings: [1, 2, 3, 4, 5].map((score) => ({
     categoryId: `category-${score}`,
     score,
@@ -36,6 +36,7 @@ describe("D1 domain model", () => {
         "dinners",
         "ratings",
         "teams",
+        "voters",
       ]),
     );
   });

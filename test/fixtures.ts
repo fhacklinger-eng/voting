@@ -6,6 +6,7 @@ export async function clearDomainData(): Promise<void> {
     env.DB.prepare("DELETE FROM ratings"),
     env.DB.prepare("DELETE FROM ballots"),
     env.DB.prepare("DELETE FROM dinners"),
+    env.DB.prepare("DELETE FROM voters"),
     env.DB.prepare("DELETE FROM categories"),
     env.DB.prepare("DELETE FROM teams"),
     env.DB.prepare("DELETE FROM challenges"),
@@ -27,14 +28,35 @@ export async function seedChallenge(): Promise<void> {
       .bind("team-1", "challenge-1", "Team Limone", "team limone", "Anna"),
     env.DB
       .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)`,
+      )
+      .bind("team-1", "challenge-1", "Anna", "anna", "team-1", now, now),
+    env.DB
+      .prepare(
         "INSERT INTO teams (id, challenge_id, name, name_key, captain_name) VALUES (?, ?, ?, ?, ?)",
       )
       .bind("team-2", "challenge-1", "Team Oliva", "team oliva", "Ben"),
     env.DB
       .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)`,
+      )
+      .bind("team-2", "challenge-1", "Ben", "ben", "team-2", now, now),
+    env.DB
+      .prepare(
         "INSERT INTO teams (id, challenge_id, name, name_key, captain_name) VALUES (?, ?, ?, ?, ?)",
       )
       .bind("team-3", "challenge-1", "Team Pomodoro", "team pomodoro", "Carla"),
+    env.DB
+      .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)`,
+      )
+      .bind("team-3", "challenge-1", "Carla", "carla", "team-3", now, now),
     ...[1, 2, 3, 4, 5].map((position) =>
       env.DB
         .prepare(
@@ -135,6 +157,21 @@ export async function seedPreparedChallenge(): Promise<{
           names[index].team,
           names[index].team.toLocaleLowerCase("de-DE"),
           names[index].captain,
+        ),
+      env.DB
+        .prepare(
+          `INSERT INTO voters (
+             id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+           ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          teamId,
+          challengeId,
+          names[index].captain,
+          names[index].captain.toLocaleLowerCase("de-DE"),
+          teamId,
+          now,
+          now,
         ),
       env.DB
         .prepare(

@@ -3,10 +3,12 @@ import {
   AuthenticationError,
   clearSessionCookie,
   createCaptainAccessToken,
+  createVoterAccessToken,
   exchangeAccess,
   readSession,
   requireRole,
   requireSameOrigin,
+  requireVoter,
   sessionCookie,
 } from "./auth";
 import { ConfigurationValidationError } from "./domain/challenge-setup";
@@ -15,12 +17,6 @@ import {
   BallotWriteConflictError,
   saveCompleteBallot,
 } from "./persistence/ballots";
-import {
-  CaptainDataError,
-  readCaptainBallot,
-  readCaptainDashboard,
-  readCaptainIdentity,
-} from "./persistence/captain";
 import {
   ConfigurationConflictError,
   readChallengeConfiguration,
@@ -39,6 +35,12 @@ import {
   RevealError,
   ResultsUnavailableError,
 } from "./persistence/results";
+import {
+  readVoterBallot,
+  readVoterDashboard,
+  readVoterIdentity,
+  VoterDataError,
+} from "./persistence/voters";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",
@@ -112,7 +114,7 @@ async function sessionMe(request: Request, env: Cloudflare.Env): Promise<Respons
   }
   if (session.role === "admin") return json({ session: { role: "admin" } });
   return json({
-    session: await readCaptainIdentity(env.DB, session.challengeId, session.teamId),
+    session: await readVoterIdentity(env.DB, session.challengeId, session.voterId),
   });
 }
 
@@ -128,13 +130,20 @@ async function adminChallenge(request: Request, env: Cloudflare.Env): Promise<Re
   return errorResponse(405, "METHOD_NOT_ALLOWED", "Diese Aktion wird nicht unterstützt.");
 }
 
-async function captainLinks(request: Request, env: Cloudflare.Env): Promise<Response> {
+async function accessLinks(
+  request: Request,
+  env: Cloudflare.Env,
+  includeJury: boolean,
+): Promise<Response> {
   await requireRole(request, env.AUTH_SIGNING_SECRET, "admin");
   const challenge = await readChallengeConfiguration(env.DB);
   if (!challenge) return json({ links: [] });
   const origin = new URL(request.url).origin;
-  const links = await Promise.all(
+  const captainLinks = await Promise.all(
     challenge.teams.map(async (team) => ({
+      voterId: team.id,
+      role: "captain" as const,
+      displayName: team.captainName,
       teamName: team.name,
       captainName: team.captainName,
       link: `${origin}/#/access/captain/${await createCaptainAccessToken(
@@ -144,7 +153,23 @@ async function captainLinks(request: Request, env: Cloudflare.Env): Promise<Resp
       )}`,
     })),
   );
-  return json({ links });
+  if (!includeJury) return json({ links: captainLinks });
+
+  const juryLinks = await Promise.all(
+    challenge.juryMembers.map(async (member) => ({
+      voterId: member.id,
+      role: "jury" as const,
+      displayName: member.name,
+      teamName: null,
+      link: `${origin}/#/access/jury/${await createVoterAccessToken(
+        env.AUTH_SIGNING_SECRET,
+        "jury",
+        challenge.id,
+        member.id,
+      )}`,
+    })),
+  );
+  return json({ links: [...captainLinks, ...juryLinks] });
 }
 
 async function changeDinner(
@@ -177,22 +202,23 @@ async function adminResults(request: Request, env: Cloudflare.Env): Promise<Resp
   return json({ results: await readRevealedResults(env.DB) });
 }
 
-async function captainResults(request: Request, env: Cloudflare.Env): Promise<Response> {
-  const session = await requireRole(request, env.AUTH_SIGNING_SECRET, "captain");
+async function voterResults(request: Request, env: Cloudflare.Env): Promise<Response> {
+  const session = await requireVoter(request, env.AUTH_SIGNING_SECRET);
+  await readVoterIdentity(env.DB, session.challengeId, session.voterId);
   return json({
     results: await readRevealedResults(env.DB, session.challengeId),
   });
 }
 
-async function captainBallot(
+async function voterBallot(
   request: Request,
   env: Cloudflare.Env,
   dinnerId: string,
 ): Promise<Response> {
-  const session = await requireRole(request, env.AUTH_SIGNING_SECRET, "captain");
+  const session = await requireVoter(request, env.AUTH_SIGNING_SECRET);
   if (request.method === "GET") {
     return json({
-      ballot: await readCaptainBallot(env.DB, session.challengeId, session.teamId, dinnerId),
+      ballot: await readVoterBallot(env.DB, session.challengeId, session.voterId, dinnerId),
     });
   }
   if (request.method === "PUT") {
@@ -209,7 +235,7 @@ async function captainBallot(
     await saveCompleteBallot(env.DB, {
       challengeId: session.challengeId,
       dinnerId,
-      captainTeamId: session.teamId,
+      voterId: session.voterId,
       ratings,
     });
     return json({ saved: true });
@@ -241,7 +267,10 @@ async function route(request: Request, env: Cloudflare.Env): Promise<Response> {
     return json({ dashboard: await readAdminDashboard(env.DB) });
   }
   if (request.method === "GET" && url.pathname === "/api/admin/captain-links") {
-    return captainLinks(request, env);
+    return accessLinks(request, env, false);
+  }
+  if (request.method === "GET" && url.pathname === "/api/admin/access-links") {
+    return accessLinks(request, env, true);
   }
   if (request.method === "POST" && url.pathname === "/api/admin/reveal") {
     return revealResults(request, env);
@@ -261,20 +290,26 @@ async function route(request: Request, env: Cloudflare.Env): Promise<Response> {
     );
   }
 
-  if (request.method === "GET" && url.pathname === "/api/captain/dashboard") {
-    const session = await requireRole(request, env.AUTH_SIGNING_SECRET, "captain");
+  if (
+    request.method === "GET" &&
+    (url.pathname === "/api/voter/dashboard" || url.pathname === "/api/captain/dashboard")
+  ) {
+    const session = await requireVoter(request, env.AUTH_SIGNING_SECRET);
     return json({
-      dashboard: await readCaptainDashboard(env.DB, session.challengeId, session.teamId),
+      dashboard: await readVoterDashboard(env.DB, session.challengeId, session.voterId),
     });
   }
-  if (request.method === "GET" && url.pathname === "/api/captain/results") {
-    return captainResults(request, env);
+  if (
+    request.method === "GET" &&
+    (url.pathname === "/api/voter/results" || url.pathname === "/api/captain/results")
+  ) {
+    return voterResults(request, env);
   }
-  const captainBallotMatch = /^\/api\/captain\/dinners\/([^/]+)\/ballot$/.exec(
+  const voterBallotMatch = /^\/api\/(?:voter|captain)\/dinners\/([^/]+)\/ballot$/.exec(
     url.pathname,
   );
-  if (captainBallotMatch) {
-    return captainBallot(request, env, decodeURIComponent(captainBallotMatch[1]));
+  if (voterBallotMatch) {
+    return voterBallot(request, env, decodeURIComponent(voterBallotMatch[1]));
   }
 
   if (url.pathname.startsWith("/api/")) {
@@ -304,8 +339,8 @@ function knownError(error: unknown): Response | null {
   }
   if (error instanceof DinnerTransitionError) {
     return errorResponse(409, error.code, error.message, {
-      ...(error.missingCaptains.length > 0
-        ? { missingCaptains: error.missingCaptains }
+      ...(error.missingVoters.length > 0
+        ? { missingVoters: error.missingVoters }
         : {}),
     });
   }
@@ -318,7 +353,7 @@ function knownError(error: unknown): Response | null {
   if (error instanceof ResultsUnavailableError) {
     return errorResponse(409, "RESULTS_NOT_REVEALED", error.message);
   }
-  if (error instanceof CaptainDataError) {
+  if (error instanceof VoterDataError) {
     return errorResponse(error.status, error.code, error.message);
   }
   if (error instanceof BallotValidationError) {

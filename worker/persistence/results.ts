@@ -1,9 +1,11 @@
 import type { ChallengeStatus } from "../domain/challenge-setup";
+import type { VoterRole } from "../domain/challenge-setup";
 import { readAdminDashboard } from "./dinners";
 
 export interface MissingVote {
-  captainName: string;
-  captainTeamName: string;
+  displayName: string;
+  role: VoterRole;
+  teamName: string | null;
   dinnerId: string;
   dinnerTeamName: string;
   dinnerDate: string;
@@ -162,8 +164,9 @@ export async function revealChallenge(
     dinner.participants
       .filter((participant) => participant.status === "pending")
       .map((participant) => ({
-        captainName: participant.captainName,
-        captainTeamName: participant.teamName,
+        displayName: participant.displayName,
+        role: participant.role,
+        teamName: participant.teamName,
         dinnerId: dinner.id,
         dinnerTeamName: dinner.teamName,
         dinnerDate: dinner.date,
@@ -199,12 +202,15 @@ export async function revealChallenge(
              AND NOT EXISTS (
                SELECT ballot.id
                FROM ballots AS ballot
+               JOIN voters AS voter
+                 ON voter.id = COALESCE(ballot.voter_id, ballot.captain_team_id)
+                AND voter.challenge_id = ballot.challenge_id
                JOIN ratings AS rating
                  ON rating.ballot_id = ballot.id
                 AND rating.challenge_id = ballot.challenge_id
                WHERE ballot.challenge_id = challenges.id
                  AND ballot.dinner_id = dinner.id
-                 AND ballot.captain_team_id <> dinner.team_id
+                 AND (voter.role = 'jury' OR voter.team_id <> dinner.team_id)
                GROUP BY ballot.id
                HAVING COUNT(DISTINCT rating.category_id) = 5
              )
@@ -236,7 +242,7 @@ export async function readRevealedResults(
     throw new ResultsUnavailableError("Die Ergebnisse sind noch nicht freigegeben.");
   }
 
-  const [teamResult, categoryResult, scoreResult] = await Promise.all([
+  const [teamResult, categoryResult, scoreResult, voterCount] = await Promise.all([
     db
       .prepare(
         `SELECT team.id AS team_id, team.name AS team_name
@@ -256,16 +262,19 @@ export async function readRevealedResults(
       .all<CategoryRow>(),
     db
       .prepare(
-        `WITH complete_ballots AS (
+         `WITH complete_ballots AS (
            SELECT ballot.id, ballot.dinner_id
            FROM ballots AS ballot
            JOIN dinners AS ballot_dinner
              ON ballot_dinner.id = ballot.dinner_id
             AND ballot_dinner.challenge_id = ballot.challenge_id
+           JOIN voters AS voter
+             ON voter.id = COALESCE(ballot.voter_id, ballot.captain_team_id)
+            AND voter.challenge_id = ballot.challenge_id
            JOIN ratings AS rating
              ON rating.ballot_id = ballot.id AND rating.challenge_id = ballot.challenge_id
            WHERE ballot.challenge_id = ?
-             AND ballot.captain_team_id <> ballot_dinner.team_id
+             AND (voter.role = 'jury' OR voter.team_id <> ballot_dinner.team_id)
            GROUP BY ballot.id, ballot.dinner_id
            HAVING COUNT(DISTINCT rating.category_id) = 5
          )
@@ -280,13 +289,17 @@ export async function readRevealedResults(
       )
       .bind(challenge.id)
       .all<ScoreRow>(),
+    db
+      .prepare("SELECT COUNT(*) AS count FROM voters WHERE challenge_id = ?")
+      .bind(challenge.id)
+      .first<{ count: number }>(),
   ]);
 
   if (categoryResult.results.length !== 5 || teamResult.results.length === 0) {
     throw new ResultsUnavailableError("Die Ergebnisdaten sind nicht vollständig.");
   }
 
-  const expectedRatingCount = Math.max(0, teamResult.results.length - 1);
+  const expectedRatingCount = Math.max(0, (voterCount?.count ?? 0) - 1);
   const scores = new Map(
     scoreResult.results.map((row) => [`${row.team_id}:${row.category_id}`, row]),
   );

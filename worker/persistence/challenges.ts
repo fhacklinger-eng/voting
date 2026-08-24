@@ -3,6 +3,7 @@ import {
   type ChallengeStatus,
   ConfigurationValidationError,
   type DinnerStatus,
+  nameKey,
   type NormalizedChallengeSetup,
   validateChallengeSetup,
 } from "../domain/challenge-setup";
@@ -38,6 +39,11 @@ interface TeamDinnerRow {
   dinner_status: DinnerStatus;
 }
 
+interface JuryRow {
+  id: string;
+  display_name: string;
+}
+
 export async function readChallengeConfiguration(
   db: D1Database,
 ): Promise<ChallengeConfiguration | null> {
@@ -47,7 +53,7 @@ export async function readChallengeConfiguration(
 
   if (!challenge) return null;
 
-  const [categories, teams] = await Promise.all([
+  const [categories, teams, juryMembers] = await Promise.all([
     db
       .prepare(
         "SELECT id, position, name, question FROM categories WHERE challenge_id = ? ORDER BY position",
@@ -58,11 +64,15 @@ export async function readChallengeConfiguration(
       .prepare(
         `SELECT team.id AS team_id,
                 team.name AS team_name,
-                team.captain_name,
+                captain.display_name AS captain_name,
                 dinner.id AS dinner_id,
                 dinner.dinner_date,
                 dinner.status AS dinner_status
          FROM teams AS team
+         JOIN voters AS captain
+           ON captain.team_id = team.id
+          AND captain.challenge_id = team.challenge_id
+          AND captain.role = 'captain'
          JOIN dinners AS dinner
            ON dinner.team_id = team.id AND dinner.challenge_id = team.challenge_id
          WHERE team.challenge_id = ?
@@ -70,6 +80,15 @@ export async function readChallengeConfiguration(
       )
       .bind(challenge.id)
       .all<TeamDinnerRow>(),
+    db
+      .prepare(
+        `SELECT id, display_name
+         FROM voters
+         WHERE challenge_id = ? AND role = 'jury'
+         ORDER BY name_key, id`,
+      )
+      .bind(challenge.id)
+      .all<JuryRow>(),
   ]);
 
   return {
@@ -86,6 +105,10 @@ export async function readChallengeConfiguration(
         status: row.dinner_status,
       },
     })),
+    juryMembers: juryMembers.results.map((row) => ({
+      id: row.id,
+      name: row.display_name,
+    })),
     categories: categories.results,
   };
 }
@@ -96,6 +119,7 @@ function insertNewConfiguration(
 ): D1PreparedStatement[] {
   const challengeId = crypto.randomUUID();
   const now = new Date().toISOString();
+  const teams = input.teams.map((team) => ({ ...team, id: crypto.randomUUID() }));
 
   return [
     db
@@ -118,24 +142,52 @@ function insertNewConfiguration(
           category.question,
         ),
     ),
-    ...input.teams.flatMap((team) => {
-      const teamId = crypto.randomUUID();
-      return [
+    ...teams.flatMap((team) => [
         db
           .prepare(
             `INSERT INTO teams (id, challenge_id, name, name_key, captain_name)
              VALUES (?, ?, ?, ?, ?)`,
           )
-          .bind(teamId, challengeId, team.name, team.nameKey, team.captainName),
+          .bind(team.id, challengeId, team.name, team.nameKey, team.captainName),
+        db
+          .prepare(
+            `INSERT INTO voters (
+               id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+             ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            team.id,
+            challengeId,
+            team.captainName,
+            nameKey(team.captainName),
+            team.id,
+            now,
+            now,
+          ),
         db
           .prepare(
             `INSERT INTO dinners (
                id, challenge_id, team_id, dinner_date, status, created_at, updated_at
              ) VALUES (?, ?, ?, ?, 'upcoming', ?, ?)`,
           )
-          .bind(crypto.randomUUID(), challengeId, teamId, team.dinnerDate, now, now),
-      ];
-    }),
+          .bind(crypto.randomUUID(), challengeId, team.id, team.dinnerDate, now, now),
+      ]),
+    ...input.juryMembers.map((member) =>
+      db
+        .prepare(
+          `INSERT INTO voters (
+             id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+           ) VALUES (?, ?, 'jury', ?, ?, NULL, ?, ?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          challengeId,
+          member.name,
+          member.nameKey,
+          now,
+          now,
+        ),
+    ),
   ];
 }
 
@@ -164,6 +216,19 @@ function assertOnlyUpcomingDatesChanged(
     throw new ConfigurationConflictError(
       "CONFIGURATION_LOCKED",
       "Nach dem ersten geöffneten Kochabend sind die Kategorien gesperrt.",
+    );
+  }
+
+  if (
+    current.juryMembers.length !== input.juryMembers.length ||
+    current.juryMembers.some((member, index) => {
+      const incoming = input.juryMembers[index];
+      return !incoming || incoming.id !== member.id || incoming.name !== member.name;
+    })
+  ) {
+    throw new ConfigurationConflictError(
+      "CONFIGURATION_LOCKED",
+      "Nach dem ersten geöffneten Kochabend ist die Jury gesperrt.",
     );
   }
 
@@ -236,7 +301,20 @@ function updatePreparationConfiguration(
     };
   });
   const retainedTeamIds = resolvedTeams.map((team) => team.id);
-  const placeholders = retainedTeamIds.map(() => "?").join(", ");
+  const teamPlaceholders = retainedTeamIds.map(() => "?").join(", ");
+  const existingJury = new Map(current.juryMembers.map((member) => [member.id, member]));
+  const claimedJuryIds = new Set<string>();
+  const resolvedJury = input.juryMembers.map((member) => {
+    const existing =
+      member.id && !claimedJuryIds.has(member.id) ? existingJury.get(member.id) : undefined;
+    if (existing) claimedJuryIds.add(existing.id);
+    return { ...member, id: existing?.id ?? crypto.randomUUID() };
+  });
+  const retainedVoterIds = [
+    ...resolvedTeams.map((team) => team.id),
+    ...resolvedJury.map((member) => member.id),
+  ];
+  const voterPlaceholders = retainedVoterIds.map(() => "?").join(", ");
 
   return [
     db
@@ -264,6 +342,9 @@ function updatePreparationConfiguration(
     db
       .prepare("UPDATE teams SET name_key = '__pending__:' || id WHERE challenge_id = ?")
       .bind(current.id),
+    db
+      .prepare("UPDATE voters SET name_key = '__pending__:' || id WHERE challenge_id = ?")
+      .bind(current.id),
     ...current.teams.map((team, index) =>
       db
         .prepare("UPDATE dinners SET dinner_date = ? WHERE id = ? AND challenge_id = ?")
@@ -284,6 +365,29 @@ function updatePreparationConfiguration(
     ...resolvedTeams.map((team) =>
       db
         .prepare(
+          `INSERT INTO voters (
+             id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+           ) VALUES (?, ?, 'captain', ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             role = 'captain',
+             display_name = excluded.display_name,
+             name_key = excluded.name_key,
+             team_id = excluded.team_id,
+             updated_at = excluded.updated_at`,
+        )
+        .bind(
+          team.id,
+          current.id,
+          team.captainName,
+          nameKey(team.captainName),
+          team.id,
+          now,
+          now,
+        ),
+    ),
+    ...resolvedTeams.map((team) =>
+      db
+        .prepare(
           `INSERT INTO dinners (
              id, challenge_id, team_id, dinner_date, status, created_at, updated_at
            ) VALUES (?, ?, ?, ?, 'upcoming', ?, ?)
@@ -293,16 +397,37 @@ function updatePreparationConfiguration(
         )
         .bind(team.dinnerId, current.id, team.id, team.dinnerDate, now, now),
     ),
+    ...resolvedJury.map((member) =>
+      db
+        .prepare(
+          `INSERT INTO voters (
+             id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+           ) VALUES (?, ?, 'jury', ?, ?, NULL, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             role = 'jury',
+             display_name = excluded.display_name,
+             name_key = excluded.name_key,
+             team_id = NULL,
+             updated_at = excluded.updated_at`,
+        )
+        .bind(member.id, current.id, member.name, member.nameKey, now, now),
+    ),
+    db
+      .prepare(
+        `DELETE FROM voters
+         WHERE challenge_id = ? AND id NOT IN (${voterPlaceholders})`,
+      )
+      .bind(current.id, ...retainedVoterIds),
     db
       .prepare(
         `DELETE FROM dinners
-         WHERE challenge_id = ? AND team_id NOT IN (${placeholders})`,
+         WHERE challenge_id = ? AND team_id NOT IN (${teamPlaceholders})`,
       )
       .bind(current.id, ...retainedTeamIds),
     db
       .prepare(
         `DELETE FROM teams
-         WHERE challenge_id = ? AND id NOT IN (${placeholders})`,
+         WHERE challenge_id = ? AND id NOT IN (${teamPlaceholders})`,
       )
       .bind(current.id, ...retainedTeamIds),
   ];

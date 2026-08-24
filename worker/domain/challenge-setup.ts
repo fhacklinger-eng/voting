@@ -13,13 +13,14 @@ export const DEFAULT_CATEGORIES = [
     question: "Haben Garpunkt, Temperatur und Timing gepasst?",
   },
   {
-    name: "Urlaubslegende",
-    question: "Wie besonders war der gesamte Abend?",
+    name: "Gesamterlebnis",
+    question: "Wie stimmig war der Abend insgesamt?",
   },
 ] as const;
 
 export type ChallengeStatus = "preparation" | "running" | "revealed";
 export type DinnerStatus = "upcoming" | "open" | "closed";
+export type VoterRole = "captain" | "jury";
 
 export interface ChallengeSetupInput {
   name: string;
@@ -28,6 +29,10 @@ export interface ChallengeSetupInput {
     name: string;
     captainName: string;
     dinnerDate: string;
+  }>;
+  juryMembers?: Array<{
+    id?: string;
+    name: string;
   }>;
   categories?: Array<{
     id?: string;
@@ -44,6 +49,11 @@ export interface NormalizedChallengeSetup {
     nameKey: string;
     captainName: string;
     dinnerDate: string;
+  }>;
+  juryMembers: Array<{
+    id?: string;
+    name: string;
+    nameKey: string;
   }>;
   categories: Array<{
     id?: string;
@@ -66,6 +76,10 @@ export interface ChallengeConfiguration {
       date: string;
       status: DinnerStatus;
     };
+  }>;
+  juryMembers: Array<{
+    id: string;
+    name: string;
   }>;
   categories: Array<{
     id: string;
@@ -108,6 +122,7 @@ function isCalendarDate(value: string): boolean {
 export function validateChallengeSetup(input: unknown): NormalizedChallengeSetup {
   const record = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const rawTeams = Array.isArray(record.teams) ? record.teams : [];
+  const rawJuryMembers = Array.isArray(record.juryMembers) ? record.juryMembers : [];
   const rawCategories = Array.isArray(record.categories)
     ? record.categories
     : [...DEFAULT_CATEGORIES];
@@ -164,6 +179,33 @@ export function validateChallengeSetup(input: unknown): NormalizedChallengeSetup
     }
   });
 
+  const juryMembers = rawJuryMembers.map((rawMember, index) => {
+    const member =
+      rawMember && typeof rawMember === "object"
+        ? (rawMember as Record<string, unknown>)
+        : {};
+    const name = text(member.name);
+    if (!name) {
+      fieldErrors[`juryMembers.${index}.name`] = "Bitte gib einen Namen für das Jury-Mitglied ein.";
+    }
+    return {
+      id: text(member.id) || undefined,
+      name,
+      nameKey: nameKey(name),
+    };
+  });
+
+  const seenJuryNames = new Map<string, number>();
+  juryMembers.forEach((member, index) => {
+    const duplicate = seenJuryNames.get(member.nameKey);
+    if (member.nameKey && duplicate !== undefined) {
+      fieldErrors[`juryMembers.${duplicate}.name`] = "Jury-Namen müssen eindeutig sein.";
+      fieldErrors[`juryMembers.${index}.name`] = "Jury-Namen müssen eindeutig sein.";
+    } else if (member.nameKey) {
+      seenJuryNames.set(member.nameKey, index);
+    }
+  });
+
   if (rawCategories.length !== 5) {
     fieldErrors.categories = "Die Challenge benötigt genau fünf Kategorien.";
   }
@@ -206,5 +248,5 @@ export function validateChallengeSetup(input: unknown): NormalizedChallengeSetup
     throw new ConfigurationValidationError(fieldErrors);
   }
 
-  return { name, teams, categories };
+  return { name, teams, juryMembers, categories };
 }

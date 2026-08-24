@@ -5,13 +5,30 @@ import { clearDomainData, seedPreparedChallenge } from "./fixtures";
 import { adminSession, apiRequest, exchangeSession } from "./http";
 
 interface CaptainLink {
+  voterId: string;
+  role: "captain";
+  displayName: string;
   teamName: string;
   captainName: string;
   link: string;
 }
 
-function accessToken(link: string): string {
-  return new URL(link).hash.replace("#/access/captain/", "");
+interface AccessLink {
+  voterId: string;
+  role: "captain" | "jury";
+  displayName: string;
+  teamName: string | null;
+  link: string;
+}
+
+function accessToken(link: string, role: "captain" | "jury" = "captain"): string {
+  return new URL(link).hash.replace(`#/access/${role}/`, "");
+}
+
+async function accessLinks(cookie: string): Promise<AccessLink[]> {
+  const response = await worker.fetch(apiRequest("/api/admin/access-links", cookie), env);
+  expect(response.status).toBe(200);
+  return ((await response.json()) as { links: AccessLink[] }).links;
 }
 
 async function captainLinks(cookie: string): Promise<CaptainLink[]> {
@@ -93,9 +110,56 @@ describe("secret link access", () => {
         role: "captain",
         challengeName: "Gargano Koch-Challenge",
         teamName: "Team Limone",
-        captainName: "Anna",
+        displayName: "Anna",
       },
     });
+  });
+
+  it("creates a private jury link, identifies the jury role and rejects removed access", async () => {
+    const now = "2026-08-24T10:00:00.000Z";
+    await env.DB
+      .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'jury', ?, ?, NULL, ?, ?)`,
+      )
+      .bind("jury-dora", "prepared-challenge", "Dora", "dora", now, now)
+      .run();
+
+    const adminCookie = await adminSession();
+    const links = await accessLinks(adminCookie);
+    expect(links).toHaveLength(4);
+    const jury = links.find((link) => link.role === "jury")!;
+    expect(jury).toMatchObject({
+      voterId: "jury-dora",
+      displayName: "Dora",
+      teamName: null,
+    });
+
+    const token = accessToken(jury.link, "jury");
+    const juryCookie = await exchangeSession("jury", token);
+    const me = await worker.fetch(apiRequest("/api/session/me", juryCookie), env);
+    expect(await me.json()).toMatchObject({
+      session: {
+        role: "jury",
+        displayName: "Dora",
+        teamId: null,
+        teamName: null,
+      },
+    });
+
+    await env.DB.prepare("DELETE FROM voters WHERE id = ?").bind("jury-dora").run();
+    const removedLink = await worker.fetch(
+      apiRequest("/api/session/exchange", null, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "jury", token }),
+      }),
+      env,
+    );
+    expect(removedLink.status).toBe(401);
+    const removedSession = await worker.fetch(apiRequest("/api/session/me", juryCookie), env);
+    expect(removedSession.status).toBe(401);
   });
 
   it("enforces the role boundary on every protected API", async () => {
@@ -112,6 +176,7 @@ describe("secret link access", () => {
       "/api/admin/challenge",
       "/api/admin/dashboard",
       "/api/admin/captain-links",
+      "/api/admin/access-links",
       "/api/admin/results",
     ];
     for (const path of adminReads) {
@@ -137,9 +202,9 @@ describe("secret link access", () => {
     expect(captainReveal.status).toBe(403);
 
     const captainReads = [
-      "/api/captain/dashboard",
-      "/api/captain/results",
-      `/api/captain/dinners/${dinner!.id}/ballot`,
+      "/api/voter/dashboard",
+      "/api/voter/results",
+      `/api/voter/dinners/${dinner!.id}/ballot`,
     ];
     for (const path of captainReads) {
       const adminAsCaptain = await worker.fetch(apiRequest(path, adminCookie), env);
@@ -149,7 +214,7 @@ describe("secret link access", () => {
     }
 
     const adminBallotWrite = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${dinner!.id}/ballot`, adminCookie, {
+      apiRequest(`/api/voter/dinners/${dinner!.id}/ballot`, adminCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ratings: [] }),

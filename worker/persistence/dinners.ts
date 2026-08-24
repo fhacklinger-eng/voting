@@ -1,4 +1,8 @@
-import type { ChallengeStatus, DinnerStatus } from "../domain/challenge-setup";
+import type {
+  ChallengeStatus,
+  DinnerStatus,
+  VoterRole,
+} from "../domain/challenge-setup";
 
 export type ParticipationStatus = "submitted" | "pending" | "not_eligible";
 
@@ -21,9 +25,11 @@ export interface AdminDashboard {
     canClose: boolean;
     canReopen: boolean;
     participants: Array<{
-      teamId: string;
-      teamName: string;
-      captainName: string;
+      voterId: string;
+      role: VoterRole;
+      displayName: string;
+      teamId: string | null;
+      teamName: string | null;
       status: ParticipationStatus;
     }>;
   }>;
@@ -34,6 +40,13 @@ export interface AdminDashboard {
   };
 }
 
+export interface MissingParticipant {
+  voterId: string;
+  role: VoterRole;
+  displayName: string;
+  teamName: string | null;
+}
+
 export class DinnerTransitionError extends Error {
   constructor(
     public readonly code:
@@ -42,7 +55,7 @@ export class DinnerTransitionError extends Error {
       | "DINNER_NOT_REOPENABLE"
       | "MISSING_VOTES_CONFIRMATION_REQUIRED",
     message: string,
-    public readonly missingCaptains: string[] = [],
+    public readonly missingVoters: MissingParticipant[] = [],
   ) {
     super(message);
   }
@@ -54,10 +67,12 @@ interface ChallengeRow {
   status: ChallengeStatus;
 }
 
-interface TeamRow {
+interface VoterRow {
   id: string;
-  name: string;
-  captain_name: string;
+  role: VoterRole;
+  display_name: string;
+  team_id: string | null;
+  team_name: string | null;
 }
 
 interface DinnerRow {
@@ -71,7 +86,7 @@ interface DinnerRow {
 
 interface BallotRow {
   dinner_id: string;
-  captain_team_id: string;
+  voter_id: string;
 }
 
 export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard> {
@@ -80,22 +95,38 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
     .first<ChallengeRow>();
   if (!challenge) return { challenge: null, dinners: [], reveal: null };
 
-  const [teamResult, dinnerResult, ballotResult] = await Promise.all([
+  const [voterResult, dinnerResult, ballotResult] = await Promise.all([
     db
-      .prepare("SELECT id, name, captain_name FROM teams WHERE challenge_id = ? ORDER BY name")
+      .prepare(
+        `SELECT voter.id,
+                voter.role,
+                voter.display_name,
+                voter.team_id,
+                team.name AS team_name
+         FROM voters AS voter
+         LEFT JOIN teams AS team
+           ON team.id = voter.team_id AND team.challenge_id = voter.challenge_id
+         WHERE voter.challenge_id = ?
+         ORDER BY CASE voter.role WHEN 'captain' THEN 0 ELSE 1 END,
+                  COALESCE(team.name, voter.name_key), voter.id`,
+      )
       .bind(challenge.id)
-      .all<TeamRow>(),
+      .all<VoterRow>(),
     db
       .prepare(
         `SELECT dinner.id,
                 dinner.team_id,
                 team.name AS team_name,
-                team.captain_name,
+                captain.display_name AS captain_name,
                 dinner.dinner_date,
                 dinner.status
          FROM dinners AS dinner
          JOIN teams AS team
            ON team.id = dinner.team_id AND team.challenge_id = dinner.challenge_id
+         JOIN voters AS captain
+           ON captain.team_id = team.id
+          AND captain.challenge_id = team.challenge_id
+          AND captain.role = 'captain'
          WHERE dinner.challenge_id = ?
          ORDER BY dinner.dinner_date, team.name`,
       )
@@ -103,12 +134,13 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
       .all<DinnerRow>(),
     db
       .prepare(
-        `SELECT ballot.dinner_id, ballot.captain_team_id
+        `SELECT ballot.dinner_id,
+                COALESCE(ballot.voter_id, ballot.captain_team_id) AS voter_id
          FROM ballots AS ballot
          JOIN ratings AS rating
            ON rating.ballot_id = ballot.id AND rating.challenge_id = ballot.challenge_id
          WHERE ballot.challenge_id = ?
-         GROUP BY ballot.id, ballot.dinner_id, ballot.captain_team_id
+         GROUP BY ballot.id, ballot.dinner_id, COALESCE(ballot.voter_id, ballot.captain_team_id)
          HAVING COUNT(DISTINCT rating.category_id) = 5`,
       )
       .bind(challenge.id)
@@ -116,19 +148,21 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
   ]);
 
   const submitted = new Set(
-    ballotResult.results.map((ballot) => `${ballot.dinner_id}:${ballot.captain_team_id}`),
+    ballotResult.results.map((ballot) => `${ballot.dinner_id}:${ballot.voter_id}`),
   );
   const openDinner = dinnerResult.results.find((dinner) => dinner.status === "open");
 
   const dinners = dinnerResult.results.map((dinner) => {
-    const participants = teamResult.results.map((team) => ({
-      teamId: team.id,
-      teamName: team.name,
-      captainName: team.captain_name,
+    const participants = voterResult.results.map((voter) => ({
+      voterId: voter.id,
+      role: voter.role,
+      displayName: voter.display_name,
+      teamId: voter.team_id,
+      teamName: voter.team_name,
       status:
-        team.id === dinner.team_id
+        voter.role === "captain" && voter.team_id === dinner.team_id
           ? ("not_eligible" as const)
-          : submitted.has(`${dinner.id}:${team.id}`)
+          : submitted.has(`${dinner.id}:${voter.id}`)
             ? ("submitted" as const)
             : ("pending" as const),
     }));
@@ -148,7 +182,9 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
       date: dinner.dinner_date,
       status: dinner.status,
       submittedVotes,
-      expectedVotes: Math.max(0, teamResult.results.length - 1),
+      expectedVotes: participants.filter(
+        (participant) => participant.status !== "not_eligible",
+      ).length,
       canOpen:
         dinner.status === "upcoming" &&
         challenge.status !== "revealed" &&
@@ -236,28 +272,53 @@ export async function openDinner(db: D1Database, dinnerId: string): Promise<void
   }
 }
 
-async function missingCaptains(db: D1Database, dinnerId: string): Promise<string[]> {
+async function missingVoters(
+  db: D1Database,
+  dinnerId: string,
+): Promise<MissingParticipant[]> {
   const result = await db
     .prepare(
-      `SELECT team.captain_name
+      `SELECT voter.id AS voter_id,
+              voter.role,
+              voter.display_name,
+              team.name AS team_name
        FROM dinners AS dinner
-       JOIN teams AS team
-         ON team.challenge_id = dinner.challenge_id AND team.id <> dinner.team_id
+       JOIN voters AS voter ON voter.challenge_id = dinner.challenge_id
+       LEFT JOIN teams AS team
+         ON team.id = voter.team_id AND team.challenge_id = voter.challenge_id
        LEFT JOIN (
-         SELECT ballot.id, ballot.dinner_id, ballot.captain_team_id
+         SELECT ballot.id,
+                ballot.dinner_id,
+                COALESCE(ballot.voter_id, ballot.captain_team_id) AS voter_id
          FROM ballots AS ballot
          JOIN ratings AS rating
            ON rating.ballot_id = ballot.id AND rating.challenge_id = ballot.challenge_id
-         GROUP BY ballot.id, ballot.dinner_id, ballot.captain_team_id
+         GROUP BY ballot.id,
+                  ballot.dinner_id,
+                  COALESCE(ballot.voter_id, ballot.captain_team_id)
          HAVING COUNT(DISTINCT rating.category_id) = 5
        ) AS ballot
-         ON ballot.dinner_id = dinner.id AND ballot.captain_team_id = team.id
-       WHERE dinner.id = ? AND ballot.id IS NULL
-       ORDER BY team.captain_name`,
+         ON ballot.dinner_id = dinner.id AND ballot.voter_id = voter.id
+       WHERE dinner.id = ?
+         AND (voter.role = 'jury' OR voter.team_id <> dinner.team_id)
+         AND ballot.id IS NULL
+       ORDER BY CASE voter.role WHEN 'captain' THEN 0 ELSE 1 END,
+                voter.name_key,
+                voter.id`,
     )
     .bind(dinnerId)
-    .all<{ captain_name: string }>();
-  return result.results.map((row) => row.captain_name);
+    .all<{
+      voter_id: string;
+      role: VoterRole;
+      display_name: string;
+      team_name: string | null;
+    }>();
+  return result.results.map((row) => ({
+    voterId: row.voter_id,
+    role: row.role,
+    displayName: row.display_name,
+    teamName: row.team_name,
+  }));
 }
 
 export async function closeDinner(
@@ -281,7 +342,7 @@ export async function closeDinner(
     );
   }
 
-  const missing = await missingCaptains(db, dinnerId);
+  const missing = await missingVoters(db, dinnerId);
   if (missing.length > 0 && !confirmMissing) {
     throw new DinnerTransitionError(
       "MISSING_VOTES_CONFIRMATION_REQUIRED",

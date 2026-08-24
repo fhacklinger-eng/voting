@@ -5,27 +5,28 @@ import { densePlaces, roundScoreToHundredths } from "../worker/persistence/resul
 import { clearDomainData, seedPreparedChallenge } from "./fixtures";
 import { adminSession, apiRequest, exchangeSession } from "./http";
 
-interface CaptainLink {
-  captainName: string;
+interface AccessLink {
+  role: "captain" | "jury";
+  displayName: string;
   link: string;
 }
 
 let seeded: Awaited<ReturnType<typeof seedPreparedChallenge>>;
 let adminCookie: string;
 
-function captainToken(link: string): string {
-  return new URL(link).hash.replace("#/access/captain/", "");
+function accessToken(link: string, role: "captain" | "jury"): string {
+  return new URL(link).hash.replace(`#/access/${role}/`, "");
 }
 
-async function captainCookie(name: string): Promise<string> {
+async function voterCookie(name: string, role: "captain" | "jury" = "captain"): Promise<string> {
   const response = await worker.fetch(
-    apiRequest("/api/admin/captain-links", adminCookie),
+    apiRequest("/api/admin/access-links", adminCookie),
     env,
   );
-  const links = ((await response.json()) as { links: CaptainLink[] }).links;
+  const links = ((await response.json()) as { links: AccessLink[] }).links;
   return exchangeSession(
-    "captain",
-    captainToken(links.find((link) => link.captainName === name)!.link),
+    role,
+    accessToken(links.find((link) => link.role === role && link.displayName === name)!.link, role),
   );
 }
 
@@ -53,19 +54,24 @@ async function closeAllDinners(): Promise<void> {
 
 async function insertBallot(
   dinnerId: string,
-  captainTeamId: string,
+  voterId: string,
   scores: [number, number, number, number, number],
 ): Promise<void> {
-  const id = `result-ballot:${dinnerId}:${captainTeamId}`;
+  const voter = await env.DB
+    .prepare("SELECT team_id FROM voters WHERE id = ?")
+    .bind(voterId)
+    .first<{ team_id: string | null }>();
+  if (!voter) throw new Error(`Unknown test voter ${voterId}`);
+  const id = `result-ballot:${dinnerId}:${voterId}`;
   const now = "2026-08-30T10:00:00.000Z";
   await env.DB.batch([
     env.DB
       .prepare(
         `INSERT INTO ballots (
-           id, challenge_id, dinner_id, captain_team_id, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?)`,
+           id, challenge_id, dinner_id, captain_team_id, voter_id, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(id, seeded.challengeId, dinnerId, captainTeamId, now, now),
+      .bind(id, seeded.challengeId, dinnerId, voter.team_id, voterId, now, now),
     ...scores.map((score, index) =>
       env.DB
         .prepare(
@@ -96,9 +102,9 @@ beforeEach(async () => {
 
 describe("result reveal", () => {
   it("does not expose results early and blocks ineligible reveals", async () => {
-    const benCookie = await captainCookie("Ben");
+    const benCookie = await voterCookie("Ben");
     const adminResults = await worker.fetch(apiRequest("/api/admin/results", adminCookie), env);
-    const captainResults = await worker.fetch(apiRequest("/api/captain/results", benCookie), env);
+    const captainResults = await worker.fetch(apiRequest("/api/voter/results", benCookie), env);
     expect(adminResults.status).toBe(409);
     expect(captainResults.status).toBe(409);
     expect(await adminResults.text()).not.toContain("Team Limone");
@@ -124,7 +130,7 @@ describe("result reveal", () => {
   it("confirms concrete gaps and returns identical deterministic rankings", async () => {
     await closeAllDinners();
     await seedResultBallots();
-    const benCookie = await captainCookie("Ben");
+    const benCookie = await voterCookie("Ben");
 
     const confirmation = await reveal(false);
     expect(confirmation.status).toBe(409);
@@ -133,8 +139,9 @@ describe("result reveal", () => {
         code: "MISSING_VOTES_CONFIRMATION_REQUIRED",
         missingVotes: [
           {
-            captainName: "Carla",
-            captainTeamName: "Team Pomodoro",
+            displayName: "Carla",
+            role: "captain",
+            teamName: "Team Pomodoro",
             dinnerTeamName: "Team Oliva",
             dinnerDate: "2026-08-27",
           },
@@ -152,7 +159,7 @@ describe("result reveal", () => {
     expect(challenge?.revealed_at).not.toBeNull();
 
     const adminResponse = await worker.fetch(apiRequest("/api/admin/results", adminCookie), env);
-    const captainResponse = await worker.fetch(apiRequest("/api/captain/results", benCookie), env);
+    const captainResponse = await worker.fetch(apiRequest("/api/voter/results", benCookie), env);
     expect(adminResponse.status).toBe(200);
     expect(captainResponse.status).toBe(200);
     const adminBody = await adminResponse.text();
@@ -207,10 +214,52 @@ describe("result reveal", () => {
     expect(await repeated.text()).toBe(adminBody);
   });
 
+  it("counts jury ratings with the same weight and exposes the same result", async () => {
+    const now = "2026-08-24T10:00:00.000Z";
+    await env.DB
+      .prepare(
+        `INSERT INTO voters (
+           id, challenge_id, role, display_name, name_key, team_id, created_at, updated_at
+         ) VALUES (?, ?, 'jury', ?, ?, NULL, ?, ?)`,
+      )
+      .bind("jury-dora", seeded.challengeId, "Dora", "dora", now, now)
+      .run();
+    await closeAllDinners();
+    await seedResultBallots();
+    for (const dinnerId of seeded.dinnerIds) {
+      await insertBallot(dinnerId, "jury-dora", [2, 2, 2, 2, 2]);
+    }
+
+    expect((await reveal(true)).status).toBe(200);
+    const juryCookie = await voterCookie("Dora", "jury");
+    const [adminResponse, juryResponse] = await Promise.all([
+      worker.fetch(apiRequest("/api/admin/results", adminCookie), env),
+      worker.fetch(apiRequest("/api/voter/results", juryCookie), env),
+    ]);
+    const adminBody = await adminResponse.json();
+    expect(juryResponse.status).toBe(200);
+    expect(await juryResponse.json()).toEqual(adminBody);
+
+    const results = (adminBody as {
+      results: {
+        categories: Array<{
+          ranking: Array<{
+            teamName: string;
+            score: number;
+            ratingCount: number;
+            expectedRatingCount: number;
+          }>;
+        }>;
+      };
+    }).results;
+    const oliva = results.categories[0].ranking.find((team) => team.teamName === "Team Oliva");
+    expect(oliva).toMatchObject({ score: 3, ratingCount: 2, expectedRatingCount: 3 });
+  });
+
   it("locks configuration, dinner states and ratings after reveal", async () => {
     await closeAllDinners();
     await seedResultBallots();
-    const benCookie = await captainCookie("Ben");
+    const benCookie = await voterCookie("Ben");
     expect((await reveal(true)).status).toBe(200);
 
     const configurationResponse = await worker.fetch(
@@ -227,6 +276,7 @@ describe("result reveal", () => {
           dinner: { date: string };
         }>;
         categories: Array<{ id: string; name: string; question: string }>;
+        juryMembers: Array<{ id: string; name: string }>;
       };
     };
     const update = await worker.fetch(
@@ -242,6 +292,7 @@ describe("result reveal", () => {
             dinnerDate: team.dinner.date,
           })),
           categories: configuration.challenge.categories,
+          juryMembers: configuration.challenge.juryMembers,
         }),
       }),
       env,
@@ -257,7 +308,7 @@ describe("result reveal", () => {
     expect(reopen.status).toBe(409);
 
     const ballot = await worker.fetch(
-      apiRequest(`/api/captain/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
+      apiRequest(`/api/voter/dinners/${seeded.dinnerIds[0]}/ballot`, benCookie, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

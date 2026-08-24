@@ -29,8 +29,8 @@ export function RevealPanel({
         <p>Diese Stimmen können nach der Auflösung nicht mehr abgegeben werden:</p>
         <ul className="missing-votes">
           {confirmation.map((vote) => (
-            <li key={`${vote.dinnerId}:${vote.captainTeamName}`}>
-              <strong>{vote.captainName}</strong>
+            <li key={`${vote.dinnerId}:${vote.role}:${vote.teamName ?? vote.displayName}`}>
+              <strong>{vote.displayName} · {vote.role === "jury" ? "Jury" : vote.teamName}</strong>
               <span>für {vote.dinnerTeamName} · {dateLabel(vote.dinnerDate)}</span>
             </li>
           ))}
@@ -74,7 +74,7 @@ export function RevealPanel({
       <div className="reveal-card__seal" aria-hidden="true">★</div>
       <div className="eyebrow">Alle Abende sind abgeschlossen</div>
       <h2 id="reveal-title">Bereit für die Siegerehrung?</h2>
-      <p>Nach der Auflösung sehen alle Captains zunächst die Kategoriesieger. Danach kann gemeinsam der Gesamtsieger enthüllt werden.</p>
+      <p>Nach der Auflösung sehen alle Abstimmenden zunächst die Kategoriesieger. Danach kann gemeinsam der Gesamtsieger enthüllt werden.</p>
       <button className="button button--primary" type="button" disabled={busy || !readiness.canReveal} onClick={() => onReveal(false)}>
         {busy ? "Wird geprüft …" : "Ergebnis auflösen"}
       </button>
@@ -82,4 +82,3 @@ export function RevealPanel({
     </section>
   );
 }
-

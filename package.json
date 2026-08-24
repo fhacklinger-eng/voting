@@ -16,9 +16,12 @@
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply voting --local",
     "db:migrate:remote": "wrangler d1 migrations apply voting --remote",
+    "db:reset:local": "node scripts/reset-database.mjs --local",
+    "db:reset:remote": "node scripts/reset-database.mjs --remote",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "qrcode.react": "4.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

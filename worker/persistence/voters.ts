@@ -1,17 +1,22 @@
-import type { ChallengeStatus, DinnerStatus } from "../domain/challenge-setup";
+import type {
+  ChallengeStatus,
+  DinnerStatus,
+  VoterRole,
+} from "../domain/challenge-setup";
 
-export interface CaptainIdentity {
-  role: "captain";
+export interface VoterIdentity {
+  role: VoterRole;
   challengeId: string;
   challengeName: string;
   challengeStatus: ChallengeStatus;
-  teamId: string;
-  teamName: string;
-  captainName: string;
+  voterId: string;
+  displayName: string;
+  teamId: string | null;
+  teamName: string | null;
 }
 
-export interface CaptainDashboard {
-  identity: CaptainIdentity;
+export interface VoterDashboard {
+  identity: VoterIdentity;
   progress: { completed: number; total: number };
   dinners: Array<{
     id: string;
@@ -25,7 +30,7 @@ export interface CaptainDashboard {
   }>;
 }
 
-export interface CaptainBallot {
+export interface VoterBallot {
   dinner: { id: string; teamName: string; date: string };
   categories: Array<{
     id: string;
@@ -36,10 +41,10 @@ export interface CaptainBallot {
   ratings: Array<{ categoryId: string; score: number }>;
 }
 
-export class CaptainDataError extends Error {
+export class VoterDataError extends Error {
   constructor(
     public readonly code:
-      | "CAPTAIN_NOT_FOUND"
+      | "VOTER_NOT_FOUND"
       | "DINNER_NOT_FOUND"
       | "DINNER_NOT_OPEN"
       | "OWN_DINNER",
@@ -54,9 +59,11 @@ interface IdentityRow {
   challenge_id: string;
   challenge_name: string;
   challenge_status: ChallengeStatus;
-  team_id: string;
-  team_name: string;
-  captain_name: string;
+  voter_id: string;
+  voter_role: VoterRole;
+  display_name: string;
+  team_id: string | null;
+  team_name: string | null;
 }
 
 interface DinnerRow {
@@ -67,49 +74,54 @@ interface DinnerRow {
   status: DinnerStatus;
 }
 
-export async function readCaptainIdentity(
+export async function readVoterIdentity(
   db: D1Database,
   challengeId: string,
-  teamId: string,
-): Promise<CaptainIdentity> {
+  voterId: string,
+): Promise<VoterIdentity> {
   const row = await db
     .prepare(
       `SELECT challenge.id AS challenge_id,
               challenge.name AS challenge_name,
               challenge.status AS challenge_status,
-              team.id AS team_id,
-              team.name AS team_name,
-              team.captain_name
-       FROM teams AS team
-       JOIN challenges AS challenge ON challenge.id = team.challenge_id
-       WHERE challenge.id = ? AND team.id = ?`,
+              voter.id AS voter_id,
+              voter.role AS voter_role,
+              voter.display_name,
+              voter.team_id,
+              team.name AS team_name
+       FROM voters AS voter
+       JOIN challenges AS challenge ON challenge.id = voter.challenge_id
+       LEFT JOIN teams AS team
+         ON team.id = voter.team_id AND team.challenge_id = voter.challenge_id
+       WHERE challenge.id = ? AND voter.id = ?`,
     )
-    .bind(challengeId, teamId)
+    .bind(challengeId, voterId)
     .first<IdentityRow>();
   if (!row) {
-    throw new CaptainDataError(
-      "CAPTAIN_NOT_FOUND",
+    throw new VoterDataError(
+      "VOTER_NOT_FOUND",
       401,
-      "Dieser Zugang ist nicht mehr gültig. Bitte frag euren Organisator nach dem Link.",
+      "Dieser Zugang ist nicht mehr gültig. Bitte frag die Organisation nach dem Link.",
     );
   }
   return {
-    role: "captain",
+    role: row.voter_role,
     challengeId: row.challenge_id,
     challengeName: row.challenge_name,
     challengeStatus: row.challenge_status,
+    voterId: row.voter_id,
+    displayName: row.display_name,
     teamId: row.team_id,
     teamName: row.team_name,
-    captainName: row.captain_name,
   };
 }
 
-export async function readCaptainDashboard(
+export async function readVoterDashboard(
   db: D1Database,
   challengeId: string,
-  teamId: string,
-): Promise<CaptainDashboard> {
-  const identity = await readCaptainIdentity(db, challengeId, teamId);
+  voterId: string,
+): Promise<VoterDashboard> {
+  const identity = await readVoterIdentity(db, challengeId, voterId);
   const [dinnerResult, ballotResult] = await Promise.all([
     db
       .prepare(
@@ -132,16 +144,17 @@ export async function readCaptainDashboard(
          FROM ballots AS ballot
          JOIN ratings AS rating
            ON rating.ballot_id = ballot.id AND rating.challenge_id = ballot.challenge_id
-         WHERE ballot.challenge_id = ? AND ballot.captain_team_id = ?
+         WHERE ballot.challenge_id = ?
+           AND COALESCE(ballot.voter_id, ballot.captain_team_id) = ?
          GROUP BY ballot.id, ballot.dinner_id
          HAVING COUNT(DISTINCT rating.category_id) = 5`,
       )
-      .bind(challengeId, teamId)
+      .bind(challengeId, voterId)
       .all<{ dinner_id: string }>(),
   ]);
   const completedDinnerIds = new Set(ballotResult.results.map((ballot) => ballot.dinner_id));
   const dinners = dinnerResult.results.map((dinner) => {
-    const isOwn = dinner.team_id === teamId;
+    const isOwn = identity.role === "captain" && dinner.team_id === identity.teamId;
     const hasBallot = completedDinnerIds.has(dinner.id);
     const taskStatus = isOwn
       ? ("own" as const)
@@ -174,13 +187,13 @@ export async function readCaptainDashboard(
   };
 }
 
-export async function readCaptainBallot(
+export async function readVoterBallot(
   db: D1Database,
   challengeId: string,
-  teamId: string,
+  voterId: string,
   dinnerId: string,
-): Promise<CaptainBallot> {
-  await readCaptainIdentity(db, challengeId, teamId);
+): Promise<VoterBallot> {
+  const identity = await readVoterIdentity(db, challengeId, voterId);
   const dinner = await db
     .prepare(
       `SELECT dinner.id,
@@ -197,21 +210,21 @@ export async function readCaptainBallot(
     .bind(dinnerId, challengeId)
     .first<DinnerRow>();
   if (!dinner) {
-    throw new CaptainDataError(
+    throw new VoterDataError(
       "DINNER_NOT_FOUND",
       404,
       "Dieser Kochabend wurde nicht gefunden.",
     );
   }
-  if (dinner.team_id === teamId) {
-    throw new CaptainDataError(
+  if (identity.role === "captain" && dinner.team_id === identity.teamId) {
+    throw new VoterDataError(
       "OWN_DINNER",
       403,
       "Das eigene Team darf nicht bewertet werden.",
     );
   }
   if (dinner.status !== "open") {
-    throw new CaptainDataError(
+    throw new VoterDataError(
       "DINNER_NOT_OPEN",
       409,
       "Dieser Kochabend ist nicht mehr zur Abstimmung geöffnet.",
@@ -233,9 +246,9 @@ export async function readCaptainBallot(
            ON rating.ballot_id = ballot.id AND rating.challenge_id = ballot.challenge_id
          WHERE ballot.challenge_id = ?
            AND ballot.dinner_id = ?
-           AND ballot.captain_team_id = ?`,
+           AND COALESCE(ballot.voter_id, ballot.captain_team_id) = ?`,
       )
-      .bind(challengeId, dinnerId, teamId)
+      .bind(challengeId, dinnerId, voterId)
       .all<{ category_id: string; score: number }>(),
   ]);
 

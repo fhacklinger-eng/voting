@@ -24,9 +24,11 @@ interface Dinner {
   canClose: boolean;
   canReopen: boolean;
   participants: Array<{
-    teamId: string;
-    teamName: string;
-    captainName: string;
+    voterId: string;
+    role: "captain" | "jury";
+    displayName: string;
+    teamId: string | null;
+    teamName: string | null;
     status: ParticipationStatus;
   }>;
 }
@@ -70,7 +72,7 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
   const [notice, setNotice] = useState("");
   const [confirmation, setConfirmation] = useState<null | {
     dinnerId: string;
-    missingCaptains: string[];
+    missingVoters: NonNullable<ErrorDetails["missingVoters"]>;
   }>(null);
   const [revealConfirmation, setRevealConfirmation] = useState<
     ErrorDetails["missingVotes"] | null
@@ -130,7 +132,7 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
       ) {
         setConfirmation({
           dinnerId: dinner.id,
-          missingCaptains: caught.details.missingCaptains ?? [],
+          missingVoters: caught.details.missingVoters ?? [],
         });
       } else {
         setError(caught instanceof Error ? caught.message : "Die Aktion konnte nicht ausgeführt werden.");
@@ -192,7 +194,7 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
 
       <nav className="tab-nav" aria-label="Organisation">
         <button type="button" className={view === "dinners" ? "is-active" : ""} onClick={() => setView("dinners")}>{challenge.status === "revealed" ? "Ergebnis" : "Abende"}</button>
-        <button type="button" className={view === "links" ? "is-active" : ""} onClick={() => setView("links")}>Captain-Links</button>
+        <button type="button" className={view === "links" ? "is-active" : ""} onClick={() => setView("links")}>Zugänge</button>
         <button type="button" className={view === "setup" ? "is-active" : ""} onClick={() => setView("setup")}>Setup</button>
       </nav>
 
@@ -238,8 +240,8 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
                       <summary>Teilnahme ansehen</summary>
                       <ul>
                         {dinner.participants.map((participant) => (
-                          <li key={participant.teamId}>
-                            <span><strong>{participant.captainName}</strong><small>{participant.teamName}</small></span>
+                          <li key={participant.voterId}>
+                            <span><strong>{participant.displayName}</strong><small>{participant.role === "jury" ? "Jury" : participant.teamName}</small></span>
                             <span className={`participation__state participation__state--${participant.status}`}>
                               {participationLabel[participant.status]}
                             </span>
@@ -251,7 +253,7 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
                     {confirmationForDinner && (
                       <div className="confirmation" role="alert">
                         <strong>Noch nicht alle haben abgestimmt.</strong>
-                        <p>Es fehlen: {confirmation.missingCaptains.join(", ") || "mindestens eine Stimme"}. Trotzdem schließen?</p>
+                        <p>Es fehlen: {confirmation.missingVoters.map((voter) => voter.role === "jury" ? `${voter.displayName} (Jury)` : `${voter.displayName} (${voter.teamName})`).join(", ") || "mindestens eine Stimme"}. Trotzdem schließen?</p>
                         <div className="button-row">
                           <button className="button button--danger" type="button" disabled={isBusy} onClick={() => void changeDinner(dinner, "close", true)}>Trotzdem schließen</button>
                           <button className="button button--ghost" type="button" onClick={() => setConfirmation(null)}>Noch offen lassen</button>

@@ -5,20 +5,21 @@ import { Brand } from "./Brand";
 import { CaptainArea } from "./captain/CaptainArea";
 
 type AdminSession = { role: "admin" };
-export type CaptainSession = {
-  role: "captain";
+export type VoterSession = {
+  role: "captain" | "jury";
   challengeId: string;
   challengeName: string;
   challengeStatus: "preparation" | "running" | "revealed";
-  teamId: string;
-  teamName: string;
-  captainName: string;
+  voterId: string;
+  displayName: string;
+  teamId: string | null;
+  teamName: string | null;
 };
-type Session = AdminSession | CaptainSession;
+type Session = AdminSession | VoterSession;
 
 interface AccessFragment {
   present: boolean;
-  kind?: "admin" | "captain";
+  kind?: "admin" | "captain" | "jury";
   token?: string;
 }
 
@@ -31,12 +32,12 @@ function consumeAccessFragment(): AccessFragment {
     "",
     `${window.location.pathname}${window.location.search}#/`,
   );
-  const match = /^#\/access\/(admin|captain)\/(.+)$/.exec(hash);
+  const match = /^#\/access\/(admin|captain|jury)\/(.+)$/.exec(hash);
   if (!match) return { present: true };
   try {
     return {
       present: true,
-      kind: match[1] as "admin" | "captain",
+      kind: match[1] as "admin" | "captain" | "jury",
       token: decodeURIComponent(match[2]),
     };
   } catch {
@@ -120,4 +121,3 @@ export function Root() {
     ? <AdminArea onLogout={logout} />
     : <CaptainArea initialIdentity={session} onLogout={logout} />;
 }
-
