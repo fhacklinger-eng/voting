@@ -245,7 +245,10 @@ export function App() {
       const first = Object.keys(errors)[0];
       if (first === "name") setStep(1);
       else if (first.startsWith("teams")) setStep(2);
-      else setStep(3);
+      else {
+        setStep(3);
+        setCategoriesOpen(true);
+      }
       focusFirstError(errors);
       return;
     }
@@ -270,7 +273,10 @@ export function App() {
           const first = Object.keys(payload.error.fieldErrors)[0];
           if (first === "name") setStep(1);
           else if (first?.startsWith("teams")) setStep(2);
-          else setStep(3);
+          else {
+            setStep(3);
+            setCategoriesOpen(true);
+          }
           focusFirstError(payload.error.fieldErrors);
         }
         throw new Error(payload.error?.message ?? "Die Challenge konnte nicht gespeichert werden.");

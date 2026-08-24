@@ -1,3 +1,10 @@
+import { ConfigurationValidationError } from "./domain/challenge-setup";
+import {
+  ConfigurationConflictError,
+  readChallengeConfiguration,
+  saveChallengeConfiguration,
+} from "./persistence/challenges";
+
 const SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
@@ -136,9 +143,3 @@ export default {
     return new Response(null, { status: 404 });
   },
 };
-import { ConfigurationValidationError } from "./domain/challenge-setup";
-import {
-  ConfigurationConflictError,
-  readChallengeConfiguration,
-  saveChallengeConfiguration,
-} from "./persistence/challenges";
