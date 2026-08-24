@@ -142,6 +142,30 @@ npm run db:migrate:remote
 Der Remote-Befehl darf erst verwendet werden, nachdem die echte D1-Datenbank
 angelegt und ihre ID in `wrangler.jsonc` eingetragen wurde.
 
+## Challenge-Daten zurücksetzen
+
+Für einen Neustart der Challenge kann die gehostete D1-Datenbank geleert
+werden, ohne Tabellen, angewendete Migrationen oder Secrets zu entfernen:
+
+```bash
+npm run db:reset:remote
+```
+
+Das Script nennt das Ziel ausdrücklich und verlangt vor der Löschung die exakte
+Eingabe `RESET voting`. Anschließend müssen die ausgegebenen Zähler für
+Challenges, Teams, Abende, Stimmzettel, Bewertungen und Kategorien alle `0`
+sein. Das Script darf erneut ausgeführt werden; eine bereits leere Datenbank
+bleibt leer. Es funktioniert sowohl vor als auch nach der Jury-Migration.
+
+Für die lokale Wrangler-Datenbank gibt es entsprechend:
+
+```bash
+npm run db:reset:local
+```
+
+Wichtig: Der Remote-Reset löscht sämtliche Challenge- und Bewertungsdaten
+unwiderruflich. Er wird nicht automatisch beim Deployment ausgeführt.
+
 ## Erstes Cloudflare-Deployment
 
 Für die Implementierung und lokale Prüfung ist noch keine Cloudflare-Einrichtung
