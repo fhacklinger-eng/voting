@@ -63,7 +63,9 @@ class QrCodeBoundary extends Component<
 }
 
 function roleLabel(link: AccessLink): string {
-  return link.role === "jury" ? "Jury" : (link.teamName ?? "Captain");
+  return link.role === "jury"
+    ? "Jury"
+    : `Captain${link.teamName ? ` · ${link.teamName}` : ""}`;
 }
 
 export function CaptainLinks() {
@@ -157,13 +159,24 @@ export function CaptainLinks() {
           {links.map((link, index) => (
             <li key={link.voterId}>
               <span className={`captain-links__number captain-links__number--${link.role}`} aria-hidden="true">{link.role === "jury" ? "★" : index + 1}</span>
-              <span className="captain-links__identity"><strong>{link.displayName}</strong><small>{roleLabel(link)}</small></span>
+              <span className="captain-links__identity" id={`access-identity-${link.voterId}`}><strong>{link.displayName}</strong><small>{roleLabel(link)}</small></span>
               <span className="captain-links__actions">
-                <button className="button button--small button--secondary" type="button" disabled={busy === link.voterId} onClick={() => void share(link)}>
+                <button
+                  className="button button--small button--secondary"
+                  type="button"
+                  disabled={busy === link.voterId}
+                  onClick={() => void share(link)}
+                  aria-label={`${nativeShare() ? "Link teilen" : "Link kopieren"}: ${link.displayName}`}
+                >
                   {busy === link.voterId ? "…" : nativeShare() ? "Teilen" : "Kopieren"}
                 </button>
-                <button className="button button--small button--ghost" type="button" onClick={(event) => showQr(link, event.currentTarget)}>
-                  QR-Code anzeigen
+                <button
+                  className="button button--small button--ghost"
+                  type="button"
+                  onClick={(event) => showQr(link, event.currentTarget)}
+                  aria-label={`QR-Code anzeigen: ${link.displayName}`}
+                >
+                  QR-Code
                 </button>
               </span>
             </li>
