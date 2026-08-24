@@ -72,17 +72,19 @@ Das MVP startet mit fünf festen, für ein gemeinsames Abendessen geeigneten Kat
 
 | Kategorie | Leitfrage für die Abstimmung |
 |---|---|
-| Geschmack & Genuss | Würde ich sofort noch eine Portion nehmen? |
-| Handwerk & Timing | War alles so gar, heiß, kalt oder knusprig, wie es sein sollte? |
-| Kreativität & Idee | War das Menü eigenständig, überraschend oder besonders gut gedacht? |
-| Gastgeberfaktor | Wie stimmig waren Präsentation, Atmosphäre und der gesamte Abend? |
-| Urlaubslegende | Wie wahrscheinlich erzählen wir nächstes Jahr noch von diesem Abend? |
+| Nachschlag-Faktor | Wie lecker war’s? |
+| Das Auge isst mit | Wie appetitlich sah das Essen aus? |
+| Küchen-Coup | Wie kreativ und stimmig war das Menü? |
+| Punktlandung | Haben Garpunkt, Temperatur und Timing gepasst? |
+| Urlaubslegende | Wie besonders war der gesamte Abend? |
 
 Skalenhilfe:
 
-- 1 – da ist noch Luft in der Ferienküche
-- 3 – richtig guter Abend
-- 5 – Kandidat für die goldene Kochmütze
+- 1 – Noch Luft im Topf
+- 2 – Solider Versuch
+- 3 – Hat geschmeckt
+- 4 – Richtig stark
+- 5 – Goldene Kochmütze
 
 Die fünf Kategorien bilden einen sinnvollen Standard. Der Organisator darf Namen und Leitfragen vor Beginn der ersten Abstimmung anpassen. Kategorien hinzuzufügen, zu entfernen oder zu gewichten ist im MVP nicht vorgesehen. Damit bleiben Ergebnisse und Bedienung einfach und vergleichbar.
 
