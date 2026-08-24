@@ -1,0 +1,4 @@
+# Nur als Vorlage verwenden. Vor dem Start beide Werte durch unterschiedliche,
+# zufällige Werte mit mindestens 32 Zeichen ersetzen.
+ADMIN_ACCESS_TOKEN=<replace-with-random-value>
+AUTH_SIGNING_SECRET=<replace-with-different-random-value>
