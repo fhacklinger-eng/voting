@@ -1,0 +1,129 @@
+:root {
+  font-family: Inter, ui-rounded, "SF Pro Rounded", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #2e392f;
+  background: #f4ead7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 15%, rgb(246 194 80 / 24%), transparent 32%),
+    linear-gradient(160deg, #f8efdf 0%, #edddc4 100%);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.card {
+  width: min(100%, 430px);
+  padding: 32px 24px;
+  border: 1px solid rgb(76 93 74 / 14%);
+  border-radius: 28px;
+  background: rgb(255 253 247 / 92%);
+  box-shadow: 0 18px 50px rgb(83 65 38 / 14%);
+  text-align: center;
+}
+
+.eyebrow {
+  color: #ad5d3c;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.plate {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  margin: 22px auto;
+  place-items: center;
+  border: 8px solid #fff;
+  border-radius: 50%;
+  background: #f6c250;
+  box-shadow: 0 5px 0 #dbc9aa;
+  font-size: 2rem;
+}
+
+h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 10vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+p {
+  margin: 20px auto 24px;
+  color: #5f675e;
+  line-height: 1.55;
+}
+
+.status {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eee6d8;
+  color: #615b50;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.status__dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status--ready {
+  background: #dfe9d5;
+  color: #3f6548;
+}
+
+.status--unavailable {
+  background: #f5dfd5;
+  color: #984b35;
+}
+
+@media (min-width: 720px) {
+  .card {
+    padding: 46px 42px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status--loading .status__dot {
+    animation: pulse 1.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.25;
+  }
+}

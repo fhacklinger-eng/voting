@@ -9,6 +9,7 @@ Primärer Einsatzfall: private Koch-Challenge im Urlaub
 - [Softwarearchitektur](docs/architecture.md)
 - [UI-Konzept](docs/ui-concept.md)
 - [Grafischer UI-Entwurf](docs/ui-concept.svg)
+- [Entwicklung und Cloudflare-Betrieb](docs/development.md)
 
 ## 1. Produktidee in einem Satz
 
