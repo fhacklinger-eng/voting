@@ -1,3 +1,10 @@
+import { ConfigurationValidationError } from "./domain/challenge-setup";
+import {
+  ConfigurationConflictError,
+  readChallengeConfiguration,
+  saveChallengeConfiguration,
+} from "./persistence/challenges";
+
 const SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
@@ -31,12 +38,94 @@ async function health(env: Cloudflare.Env): Promise<Response> {
   }
 }
 
+class InvalidJsonError extends Error {}
+
+async function parseJson(request: Request): Promise<unknown> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new InvalidJsonError("JSON_REQUIRED");
+  }
+
+  try {
+    return await request.json();
+  } catch {
+    throw new InvalidJsonError("INVALID_JSON");
+  }
+}
+
+async function adminChallenge(request: Request, env: Cloudflare.Env): Promise<Response> {
+  if (request.method === "GET") {
+    return json({ challenge: await readChallengeConfiguration(env.DB) });
+  }
+
+  if (request.method !== "PUT") {
+    return json(
+      {
+        error: {
+          code: "METHOD_NOT_ALLOWED",
+          message: "Diese Aktion wird nicht unterstützt.",
+        },
+      },
+      { status: 405, headers: { Allow: "GET, PUT" } },
+    );
+  }
+
+  try {
+    const challenge = await saveChallengeConfiguration(env.DB, await parseJson(request));
+    return json({ challenge });
+  } catch (error) {
+    if (error instanceof ConfigurationValidationError) {
+      return json(
+        {
+          error: {
+            code: "VALIDATION_FAILED",
+            message: error.message,
+            fieldErrors: error.fieldErrors,
+          },
+        },
+        { status: 422 },
+      );
+    }
+    if (error instanceof ConfigurationConflictError) {
+      return json(
+        { error: { code: error.code, message: error.message } },
+        { status: 409 },
+      );
+    }
+    if (error instanceof InvalidJsonError) {
+      return json(
+        {
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Bitte sende gültige JSON-Daten.",
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    return json(
+      {
+        error: {
+          code: "CONFIGURATION_SAVE_FAILED",
+          message: "Die Challenge konnte gerade nicht gespeichert werden. Bitte versuche es erneut.",
+        },
+      },
+      { status: 500 },
+    );
+  }
+}
+
 export default {
   async fetch(request: Request, env: Cloudflare.Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/api/health") {
       return health(env);
+    }
+
+    if (url.pathname === "/api/admin/challenge") {
+      return adminChallenge(request, env);
     }
 
     if (url.pathname.startsWith("/api/")) {

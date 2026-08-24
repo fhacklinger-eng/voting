@@ -1,7 +1,8 @@
 # Entwicklung und Cloudflare-Betrieb
 
-Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2. Produkt- und
-UI-Konzept befinden sich im übergeordneten README und unter `docs/`.
+Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2 und die
+Challenge-Einrichtung aus Issue #3. Produkt- und UI-Konzept befinden sich im
+übergeordneten README und unter `docs/`.
 
 ## Voraussetzungen
 
@@ -31,6 +32,20 @@ npm run build
 
 Die Tests laufen in der Cloudflare-Workers-Laufzeit mit einer isolierten
 lokalen D1-Datenbank. Die Migrationen werden dabei automatisiert angewendet.
+
+## Challenge einrichten
+
+Beim ersten Aufruf führt die Oberfläche in drei Schritten durch Challenge-Name,
+Teams mit Captains und Terminen sowie die fünf vorbelegten Kategorien. Die
+Konfiguration wird über `GET/PUT /api/admin/challenge` vollständig und atomar
+in D1 gespeichert.
+
+Bis zum ersten geöffneten Kochabend können Challenge, Teams, Termine und
+Kategorien geändert werden. Danach bleiben ausschließlich die Termine noch
+bevorstehender Abende änderbar. Nach der Auflösung ist die Konfiguration nur
+noch lesbar. Die Zugangskontrolle für die Admin-API wird mit Issue #4 ergänzt;
+bis dahin darf dieser Branch nur in der privaten Entwicklungsumgebung verwendet
+werden.
 
 ## D1-Migrationen
 
