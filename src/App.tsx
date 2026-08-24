@@ -153,7 +153,7 @@ function focusFirstError(errors: Record<string, string>): void {
   );
 }
 
-export function App() {
+export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
   const [form, setForm] = useState<SetupForm>(emptyForm);
   const [challenge, setChallenge] = useState<ChallengeDto | null>(null);
   const [step, setStep] = useState(1);
@@ -287,7 +287,7 @@ export function App() {
       setFieldErrors({});
       setNotice(
         payload.challenge.status === "preparation"
-          ? "Alles ist gespeichert. Die Captain-Links kommen im nächsten Einrichtungsschritt dazu."
+          ? "Alles ist gespeichert. Als Nächstes kannst du die Captain-Links teilen."
           : "Die geänderten Termine sind gespeichert.",
       );
       setShowSummary(true);
@@ -343,13 +343,20 @@ export function App() {
             </ul>
           </section>
 
-          {!fullyLocked && (
-            <button className="button button--primary" type="button" onClick={() => {
-              setStep(setupLocked ? 2 : 1); setShowSummary(false); setNotice("");
-            }}>
-              {setupLocked ? "Kommende Termine bearbeiten" : "Challenge bearbeiten"}
-            </button>
-          )}
+          <div className="summary-actions">
+            {onDone && (
+              <button className="button button--primary" type="button" onClick={onDone}>
+                Zur Abendsteuerung
+              </button>
+            )}
+            {!fullyLocked && (
+              <button className="button button--secondary" type="button" onClick={() => {
+                setStep(setupLocked ? 2 : 1); setShowSummary(false); setNotice("");
+              }}>
+                {setupLocked ? "Kommende Termine bearbeiten" : "Challenge bearbeiten"}
+              </button>
+            )}
+          </div>
           {fullyLocked && <p className="locked-note">Die Challenge ist aufgelöst und bleibt unverändert erhalten.</p>}
         </section>
       </main>

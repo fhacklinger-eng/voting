@@ -1,8 +1,9 @@
 # Entwicklung und Cloudflare-Betrieb
 
-Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2 und die
-Challenge-Einrichtung aus Issue #3. Produkt- und UI-Konzept befinden sich im
-übergeordneten README und unter `docs/`.
+Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2, die
+Challenge-Einrichtung aus Issue #3 sowie Zugang, Abendsteuerung und Captain-
+Voting aus den Issues #4 bis #6 und die gemeinsame Ergebnisauflösung aus
+Issue #7.
 
 ## Voraussetzungen
 
@@ -22,6 +23,17 @@ Die Anwendung ist danach standardmäßig unter `http://localhost:5173` erreichba
 Die lokale D1-Datenbank liegt ausschließlich im lokalen Wrangler-Zustand und
 hat keinen Zugriff auf gehostete Daten.
 
+Vor dem Start werden zwei lokale Secrets in einer Datei `.dev.vars` benötigt:
+
+```dotenv
+ADMIN_ACCESS_TOKEN=<mindestens-32-zufaellige-Zeichen>
+AUTH_SIGNING_SECRET=<anderes-Secret-mit-mindestens-32-Zeichen>
+```
+
+Zwei geeignete Werte lassen sich auf macOS jeweils mit `openssl rand -hex 32`
+erzeugen. `.dev.vars` ist in `.gitignore` eingetragen und darf nicht committed
+werden. Die Werte müssen voneinander verschieden sein.
+
 ## Prüfen
 
 ```bash
@@ -33,7 +45,26 @@ npm run build
 Die Tests laufen in der Cloudflare-Workers-Laufzeit mit einer isolierten
 lokalen D1-Datenbank. Die Migrationen werden dabei automatisiert angewendet.
 
-## Challenge einrichten
+## Persönlichen Zugang öffnen
+
+Der Admin öffnet lokal diese Adresse; `<ADMIN_ACCESS_TOKEN>` wird dabei durch
+den Wert aus `.dev.vars` ersetzt:
+
+```text
+http://localhost:5173/#/access/admin/<ADMIN_ACCESS_TOKEN>
+```
+
+Die App tauscht den Fragment-Link einmalig gegen ein signiertes HttpOnly-Cookie
+und entfernt das Token sofort aus der Adresszeile. Im Bereich `Captain-Links`
+kann der Admin anschließend für jedes Team den persönlichen Link teilen oder
+kopieren. Captain-Links dürfen nur privat an den jeweiligen Captain gehen.
+
+Ein ungültiger, veränderter oder nicht zur Rolle passender Zugang zeigt keine
+Challenge-Daten. Admin- und Captain-APIs sind serverseitig getrennt; die
+Captain-Identität stammt ausschließlich aus der signierten Session und nicht
+aus Formulardaten.
+
+## Challenge einrichten und steuern
 
 Beim ersten Aufruf führt die Oberfläche in drei Schritten durch Challenge-Name,
 Teams mit Captains und Terminen sowie die fünf vorbelegten Kategorien. Die
@@ -43,15 +74,50 @@ in D1 gespeichert.
 Bis zum ersten geöffneten Kochabend können Challenge, Teams, Termine und
 Kategorien geändert werden. Danach bleiben ausschließlich die Termine noch
 bevorstehender Abende änderbar. Nach der Auflösung ist die Konfiguration nur
-noch lesbar. Die Zugangskontrolle für die Admin-API wird mit Issue #4 ergänzt;
-bis dahin darf dieser Branch nur in der privaten Entwicklungsumgebung verwendet
-werden.
+noch lesbar.
+
+Unter `Abende` kann der Admin genau den chronologisch nächsten Abend öffnen.
+Es kann höchstens einen offenen Abend geben. Beim Schließen werden fehlende
+Captain-Stimmen namentlich angezeigt und müssen ausdrücklich bestätigt werden.
+Ein geschlossener Abend kann wieder geöffnet werden; vorhandene Bewertungen
+bleiben dabei erhalten. Punktwerte oder Zwischenergebnisse werden in der
+Admin-Ansicht nicht angezeigt.
+
+Captains sehen nur ihre eigene Identität, den Fortschritt und den aktuell
+geöffneten fremden Kochabend. Eine Bewertung besteht immer vollständig aus den
+fünf Kategorien mit jeweils 1 bis 5 Punkten. Sie kann solange überschrieben
+werden, wie der Abend offen ist. Das eigene Team kann nicht bewertet werden.
+
+## Ergebnis auflösen
+
+Die Admin-Ansicht bietet `Ergebnis auflösen` erst an, wenn alle Kochabende
+geschlossen sind und jedes Team mindestens eine vollständige Fremdbewertung
+erhalten hat. Fehlen einzelne der erwarteten Stimmen, nennt eine letzte
+Bestätigung Captain und betroffenen Abend. Nach der Bestätigung ist die
+Auflösung dauerhaft und sämtliche Konfigurationen, Abendzustände und
+Bewertungen bleiben gesperrt.
+
+Admin und Captains sehen danach über ihre bestehenden Zugänge dieselben
+anonymisierten Ergebnisse. Zunächst werden die fünf Kategoriesieger gezeigt;
+`Gesamtsieger enthüllen` öffnet die vollständige Gesamtrangliste. Einzelstimmen
+und ihre Zuordnung zu Captains werden auch nach der Auflösung nie ausgegeben.
+Beim erneuten Laden beginnt die Darstellung wieder mit den Kategorien, ohne den
+gespeicherten Challenge-Zustand zu verändern.
+
+Fehlende Bewertungen fließen nicht als Nullwert ein. Kategorie- und
+Gesamtscores werden aus den vorhandenen vollständigen Bewertungen berechnet,
+kaufmännisch auf zwei Nachkommastellen gerundet und mit dichter Rangfolge
+dargestellt (`1, 1, 2`). Bei unvollständiger Teilnahme wird die Zahl der
+berücksichtigten Bewertungen neben dem jeweiligen Team angezeigt.
 
 ## D1-Migrationen
 
 Neue Migrationen werden als aufsteigend nummerierte SQL-Dateien in
 `migrations/` abgelegt. Bereits veröffentlichte Migrationen werden nicht
 nachträglich geändert.
+
+Die Issues #4 bis #7 verwenden das bereits mit `0001_initial.sql` angelegte
+Schema und benötigen keine neue Migration.
 
 Lokal anwenden:
 
@@ -79,13 +145,64 @@ notwendig. Vor dem ersten Deployment sind einmalig folgende Schritte nötig:
 3. Die ausgegebene `database_id` anstelle der Null-ID in `wrangler.jsonc`
    eintragen. Die ID ist kein Secret; Zugangstoken werden dort nie eingetragen.
 4. Migrationen anwenden: `npm run db:migrate:remote`.
-5. Build und Tests ausführen: `npm test && npm run build`.
-6. Auf die `workers.dev`-Adresse deployen: `npm run deploy`.
-7. `GET /api/health` aufrufen. Erwartet werden HTTP 200 und `database: ready`.
+5. Zwei voneinander verschiedene Zufallswerte mit jeweils mindestens 32 Zeichen
+   erzeugen und als Cloudflare-Secrets setzen:
 
-Die Secrets `ADMIN_ACCESS_TOKEN` und `AUTH_SIGNING_SECRET` werden erst mit dem
-Zugangs-Issue #4 benötigt. Sie dürfen später ausschließlich über Cloudflare
-Secrets gesetzt werden, nicht in `wrangler.jsonc` oder `.dev.vars` im Repository.
+   ```bash
+   npx wrangler secret put ADMIN_ACCESS_TOKEN
+   npx wrangler secret put AUTH_SIGNING_SECRET
+   ```
+
+   Wrangler fragt jeden Wert verdeckt ab. Secrets niemals in
+   `wrangler.jsonc`, GitHub-Issues oder Logs eintragen.
+6. Build und Tests ausführen: `npm test && npm run build`.
+7. Auf die `workers.dev`-Adresse deployen: `npm run deploy`.
+8. `GET /api/health` aufrufen. Erwartet werden HTTP 200 und `database: ready`.
+9. Den Admin-Link mit dem produktiven Secret öffnen:
+   `https://<worker>.workers.dev/#/access/admin/<ADMIN_ACCESS_TOKEN>`.
+
+Wenn die D1-Datenbank bereits angelegt und ihre ID in `wrangler.jsonc`
+eingetragen ist, wird sie nicht erneut erstellt. Issue #7 benötigt weder neue
+Secrets noch weitere Cloudflare-Ressourcen.
+
+## Manuelle Abnahme #4 bis #6
+
+1. Admin-Link öffnen: Die Adresse enthält danach kein Token mehr und die
+   Abendsteuerung wird angezeigt.
+2. Einen Captain-Link privat öffnen: Captain, Team und Challenge stimmen; Admin-
+   Funktionen sind nicht sichtbar.
+3. Einen Captain-Link verändern: Es erscheint nur die neutrale Zugangsseite.
+4. Ersten Abend öffnen: Die Challenge wechselt auf `läuft`; ein zweiter Abend
+   lässt sich nicht gleichzeitig öffnen.
+5. Kochendes Team öffnen: Es gibt keine Bewertungsaktion für das eigene Essen.
+6. Fremder Captain bewertet nicht alle Kategorien: Speichern wird verhindert
+   und die fehlenden Kategorien werden markiert.
+7. Alle fünf Werte speichern und erneut öffnen: Die Auswahl ist vorhanden und
+   kann geändert werden; Admin sieht nur `abgegeben`, keine Punkte.
+8. Abend mit fehlenden Stimmen schließen: Namen werden genannt und es ist eine
+   ausdrückliche zweite Bestätigung nötig.
+9. Während eines offenen Stimmzettels den Abend anderweitig schließen und dann
+   speichern: Die Auswahl bleibt sichtbar; die App meldet, dass nichts
+   gespeichert wurde.
+10. Abend wieder öffnen: Bereits gespeicherte Bewertungen sind weiterhin da.
+
+## Manuelle Abnahme #7
+
+1. Solange mindestens ein Abend offen oder bevorstehend ist, bleibt die
+   Auflösung gesperrt.
+2. Alle Abende schließen, aber ein Team ohne einzige Fremdbewertung lassen: Die
+   Admin-Ansicht benennt das Team und bietet keine Auflösung an.
+3. Jedem Team mindestens eine Bewertung geben, aber einzelne erwartete Stimmen
+   auslassen: `Ergebnis auflösen` zeigt vor der endgültigen Aktion Captain und
+   betroffenen Abend sowie den Hinweis, dass Nachmeldungen unmöglich sind.
+4. Endgültig auflösen: Zuerst erscheinen ausschließlich die fünf
+   Kategoriesieger. Gleichstände zeigen mehrere Sieger.
+5. `Gesamtsieger enthüllen` wählen: Alle Teams erscheinen mit dicht gezählten
+   Plätzen und Scores mit zwei Nachkommastellen.
+6. Dieselbe Challenge mit einem Captain-Link öffnen: Werte und Platzierungen
+   stimmen mit der Admin-Ansicht überein; Einzelstimmen bleiben unsichtbar.
+7. Seite neu laden: Die Challenge bleibt aufgelöst, beginnt visuell wieder bei
+   den Kategorien und erlaubt keine Änderung an Setup, Abenden oder Stimmen.
 
 ## Wechsel zu `voting.kivio.uk`
 
