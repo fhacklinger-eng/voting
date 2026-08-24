@@ -27,6 +27,11 @@ export interface AdminDashboard {
       status: ParticipationStatus;
     }>;
   }>;
+  reveal: null | {
+    canReveal: boolean;
+    blocker: "DINNERS_NOT_CLOSED" | "TEAM_WITHOUT_VOTES" | null;
+    blockedTeams: string[];
+  };
 }
 
 export class DinnerTransitionError extends Error {
@@ -73,7 +78,7 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
   const challenge = await db
     .prepare("SELECT id, name, status FROM challenges ORDER BY created_at LIMIT 1")
     .first<ChallengeRow>();
-  if (!challenge) return { challenge: null, dinners: [] };
+  if (!challenge) return { challenge: null, dinners: [], reveal: null };
 
   const [teamResult, dinnerResult, ballotResult] = await Promise.all([
     db
@@ -115,48 +120,67 @@ export async function readAdminDashboard(db: D1Database): Promise<AdminDashboard
   );
   const openDinner = dinnerResult.results.find((dinner) => dinner.status === "open");
 
+  const dinners = dinnerResult.results.map((dinner) => {
+    const participants = teamResult.results.map((team) => ({
+      teamId: team.id,
+      teamName: team.name,
+      captainName: team.captain_name,
+      status:
+        team.id === dinner.team_id
+          ? ("not_eligible" as const)
+          : submitted.has(`${dinner.id}:${team.id}`)
+            ? ("submitted" as const)
+            : ("pending" as const),
+    }));
+    const earlierIncomplete = dinnerResult.results.some(
+      (candidate) =>
+        candidate.dinner_date < dinner.dinner_date && candidate.status !== "closed",
+    );
+    const submittedVotes = participants.filter(
+      (participant) => participant.status === "submitted",
+    ).length;
+
+    return {
+      id: dinner.id,
+      teamId: dinner.team_id,
+      teamName: dinner.team_name,
+      captainName: dinner.captain_name,
+      date: dinner.dinner_date,
+      status: dinner.status,
+      submittedVotes,
+      expectedVotes: Math.max(0, teamResult.results.length - 1),
+      canOpen:
+        dinner.status === "upcoming" &&
+        challenge.status !== "revealed" &&
+        !openDinner &&
+        !earlierIncomplete,
+      canClose: dinner.status === "open" && challenge.status !== "revealed",
+      canReopen:
+        dinner.status === "closed" && challenge.status !== "revealed" && !openDinner,
+      participants,
+    };
+  });
+  const allClosed = dinners.length > 0 && dinners.every((dinner) => dinner.status === "closed");
+  const blockedTeams = dinners
+    .filter((dinner) => dinner.submittedVotes === 0)
+    .map((dinner) => dinner.teamName);
+
   return {
     challenge: { id: challenge.id, name: challenge.name, status: challenge.status },
-    dinners: dinnerResult.results.map((dinner) => {
-      const participants = teamResult.results.map((team) => ({
-        teamId: team.id,
-        teamName: team.name,
-        captainName: team.captain_name,
-        status:
-          team.id === dinner.team_id
-            ? ("not_eligible" as const)
-            : submitted.has(`${dinner.id}:${team.id}`)
-              ? ("submitted" as const)
-              : ("pending" as const),
-      }));
-      const earlierIncomplete = dinnerResult.results.some(
-        (candidate) =>
-          candidate.dinner_date < dinner.dinner_date && candidate.status !== "closed",
-      );
-      const submittedVotes = participants.filter(
-        (participant) => participant.status === "submitted",
-      ).length;
-
-      return {
-        id: dinner.id,
-        teamId: dinner.team_id,
-        teamName: dinner.team_name,
-        captainName: dinner.captain_name,
-        date: dinner.dinner_date,
-        status: dinner.status,
-        submittedVotes,
-        expectedVotes: Math.max(0, teamResult.results.length - 1),
-        canOpen:
-          dinner.status === "upcoming" &&
-          challenge.status !== "revealed" &&
-          !openDinner &&
-          !earlierIncomplete,
-        canClose: dinner.status === "open" && challenge.status !== "revealed",
-        canReopen:
-          dinner.status === "closed" && challenge.status !== "revealed" && !openDinner,
-        participants,
-      };
-    }),
+    dinners,
+    reveal: {
+      canReveal:
+        challenge.status !== "revealed" && allClosed && blockedTeams.length === 0,
+      blocker:
+        challenge.status === "revealed"
+          ? null
+          : !allClosed
+            ? "DINNERS_NOT_CLOSED"
+            : blockedTeams.length > 0
+              ? "TEAM_WITHOUT_VOTES"
+              : null,
+      blockedTeams,
+    },
   };
 }
 

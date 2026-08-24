@@ -2,7 +2,8 @@
 
 Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2, die
 Challenge-Einrichtung aus Issue #3 sowie Zugang, Abendsteuerung und Captain-
-Voting aus den Issues #4 bis #6.
+Voting aus den Issues #4 bis #6 und die gemeinsame Ergebnisauflösung aus
+Issue #7.
 
 ## Voraussetzungen
 
@@ -87,13 +88,35 @@ geöffneten fremden Kochabend. Eine Bewertung besteht immer vollständig aus den
 fünf Kategorien mit jeweils 1 bis 5 Punkten. Sie kann solange überschrieben
 werden, wie der Abend offen ist. Das eigene Team kann nicht bewertet werden.
 
+## Ergebnis auflösen
+
+Die Admin-Ansicht bietet `Ergebnis auflösen` erst an, wenn alle Kochabende
+geschlossen sind und jedes Team mindestens eine vollständige Fremdbewertung
+erhalten hat. Fehlen einzelne der erwarteten Stimmen, nennt eine letzte
+Bestätigung Captain und betroffenen Abend. Nach der Bestätigung ist die
+Auflösung dauerhaft und sämtliche Konfigurationen, Abendzustände und
+Bewertungen bleiben gesperrt.
+
+Admin und Captains sehen danach über ihre bestehenden Zugänge dieselben
+anonymisierten Ergebnisse. Zunächst werden die fünf Kategoriesieger gezeigt;
+`Gesamtsieger enthüllen` öffnet die vollständige Gesamtrangliste. Einzelstimmen
+und ihre Zuordnung zu Captains werden auch nach der Auflösung nie ausgegeben.
+Beim erneuten Laden beginnt die Darstellung wieder mit den Kategorien, ohne den
+gespeicherten Challenge-Zustand zu verändern.
+
+Fehlende Bewertungen fließen nicht als Nullwert ein. Kategorie- und
+Gesamtscores werden aus den vorhandenen vollständigen Bewertungen berechnet,
+kaufmännisch auf zwei Nachkommastellen gerundet und mit dichter Rangfolge
+dargestellt (`1, 1, 2`). Bei unvollständiger Teilnahme wird die Zahl der
+berücksichtigten Bewertungen neben dem jeweiligen Team angezeigt.
+
 ## D1-Migrationen
 
 Neue Migrationen werden als aufsteigend nummerierte SQL-Dateien in
 `migrations/` abgelegt. Bereits veröffentlichte Migrationen werden nicht
 nachträglich geändert.
 
-Die Issues #4 bis #6 verwenden das bereits mit `0001_initial.sql` angelegte
+Die Issues #4 bis #7 verwenden das bereits mit `0001_initial.sql` angelegte
 Schema und benötigen keine neue Migration.
 
 Lokal anwenden:
@@ -139,8 +162,8 @@ notwendig. Vor dem ersten Deployment sind einmalig folgende Schritte nötig:
    `https://<worker>.workers.dev/#/access/admin/<ADMIN_ACCESS_TOKEN>`.
 
 Wenn die D1-Datenbank bereits angelegt und ihre ID in `wrangler.jsonc`
-eingetragen ist, wird sie nicht erneut erstellt. Für die Issues #4 bis #6 sind
-dann nur die beiden Secrets neu bereitzustellen.
+eingetragen ist, wird sie nicht erneut erstellt. Issue #7 benötigt weder neue
+Secrets noch weitere Cloudflare-Ressourcen.
 
 ## Manuelle Abnahme #4 bis #6
 
@@ -162,6 +185,24 @@ dann nur die beiden Secrets neu bereitzustellen.
    speichern: Die Auswahl bleibt sichtbar; die App meldet, dass nichts
    gespeichert wurde.
 10. Abend wieder öffnen: Bereits gespeicherte Bewertungen sind weiterhin da.
+
+## Manuelle Abnahme #7
+
+1. Solange mindestens ein Abend offen oder bevorstehend ist, bleibt die
+   Auflösung gesperrt.
+2. Alle Abende schließen, aber ein Team ohne einzige Fremdbewertung lassen: Die
+   Admin-Ansicht benennt das Team und bietet keine Auflösung an.
+3. Jedem Team mindestens eine Bewertung geben, aber einzelne erwartete Stimmen
+   auslassen: `Ergebnis auflösen` zeigt vor der endgültigen Aktion Captain und
+   betroffenen Abend sowie den Hinweis, dass Nachmeldungen unmöglich sind.
+4. Endgültig auflösen: Zuerst erscheinen ausschließlich die fünf
+   Kategoriesieger. Gleichstände zeigen mehrere Sieger.
+5. `Gesamtsieger enthüllen` wählen: Alle Teams erscheinen mit dicht gezählten
+   Plätzen und Scores mit zwei Nachkommastellen.
+6. Dieselbe Challenge mit einem Captain-Link öffnen: Werte und Platzierungen
+   stimmen mit der Admin-Ansicht überein; Einzelstimmen bleiben unsichtbar.
+7. Seite neu laden: Die Challenge bleibt aufgelöst, beginnt visuell wieder bei
+   den Kategorien und erlaubt keine Änderung an Setup, Abenden oder Stimmen.
 
 ## Wechsel zu `voting.kivio.uk`
 

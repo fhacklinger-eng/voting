@@ -112,6 +112,7 @@ describe("secret link access", () => {
       "/api/admin/challenge",
       "/api/admin/dashboard",
       "/api/admin/captain-links",
+      "/api/admin/results",
     ];
     for (const path of adminReads) {
       const captainAsAdmin = await worker.fetch(apiRequest(path, captainCookie), env);
@@ -125,9 +126,19 @@ describe("secret link access", () => {
       env,
     );
     expect(captainMutation.status).toBe(403);
+    const captainReveal = await worker.fetch(
+      apiRequest("/api/admin/reveal", captainCookie, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmMissing: false }),
+      }),
+      env,
+    );
+    expect(captainReveal.status).toBe(403);
 
     const captainReads = [
       "/api/captain/dashboard",
+      "/api/captain/results",
       `/api/captain/dinners/${dinner!.id}/ballot`,
     ];
     for (const path of captainReads) {

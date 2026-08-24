@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { apiRequest } from "../api";
 import { Brand, dateLabel } from "../Brand";
 import type { CaptainSession } from "../Root";
+import { ResultsView } from "../results/ResultsView";
 import { CaptainBallot } from "./CaptainBallot";
 
 type DinnerStatus = "upcoming" | "open" | "closed";
@@ -96,18 +97,21 @@ export function CaptainArea({
         </div>
       </header>
 
-      <div className="page-content">
-        <header className="captain-heading">
-          <div className="eyebrow">{identity.challengeName}</div>
-          <h1>Ciao, {identity.captainName}!</h1>
-          <p>Deine Stimme zählt für <strong>{identity.teamName}</strong>.</p>
-        </header>
+      {dashboard?.identity.challengeStatus === "revealed" ? (
+        <ResultsView endpoint="/api/captain/results" />
+      ) : (
+        <div className="page-content">
+          <header className="captain-heading">
+            <div className="eyebrow">{identity.challengeName}</div>
+            <h1>Ciao, {identity.captainName}!</h1>
+            <p>Deine Stimme zählt für <strong>{identity.teamName}</strong>.</p>
+          </header>
 
-        {notice && <div className="banner banner--success" role="status">✓ {notice}</div>}
-        {error && <div className="banner banner--error" role="alert">{error}</div>}
+          {notice && <div className="banner banner--success" role="status">✓ {notice}</div>}
+          {error && <div className="banner banner--error" role="alert">{error}</div>}
 
-        {loading && !dashboard ? <div className="loading loading--inline" role="status">Die Abende werden geladen …</div> : dashboard && (
-          <>
+          {loading && !dashboard ? <div className="loading loading--inline" role="status">Die Abende werden geladen …</div> : dashboard && (
+            <>
             <section className={`current-card${openDinner ? " current-card--open" : ""}`} aria-labelledby="current-title">
               <div className="current-card__sun" aria-hidden="true" />
               {!openDinner && (
@@ -160,9 +164,10 @@ export function CaptainArea({
                 ))}
               </ol>
             </section>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </main>
   );
 }

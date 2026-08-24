@@ -1,5 +1,13 @@
 export interface ErrorDetails {
   missingCaptains?: string[];
+  missingVotes?: Array<{
+    captainName: string;
+    captainTeamName: string;
+    dinnerId: string;
+    dinnerTeamName: string;
+    dinnerDate: string;
+  }>;
+  blockedTeams?: string[];
 }
 
 export class ApiRequestError extends Error {
@@ -47,6 +55,22 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
       {
         missingCaptains: Array.isArray(error.missingCaptains)
           ? error.missingCaptains.filter((name): name is string => typeof name === "string")
+          : undefined,
+        missingVotes: Array.isArray(error.missingVotes)
+          ? error.missingVotes.filter((vote): vote is NonNullable<ErrorDetails["missingVotes"]>[number] => {
+              if (!vote || typeof vote !== "object") return false;
+              const record = vote as Record<string, unknown>;
+              return (
+                typeof record.captainName === "string" &&
+                typeof record.captainTeamName === "string" &&
+                typeof record.dinnerId === "string" &&
+                typeof record.dinnerTeamName === "string" &&
+                typeof record.dinnerDate === "string"
+              );
+            })
+          : undefined,
+        blockedTeams: Array.isArray(error.blockedTeams)
+          ? error.blockedTeams.filter((name): name is string => typeof name === "string")
           : undefined,
       },
     );

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChallengeSetup } from "../App";
 import { ApiRequestError, apiRequest, jsonRequest } from "../api";
+import type { ErrorDetails } from "../api";
 import { Brand, dateLabel } from "../Brand";
+import { ResultsView } from "../results/ResultsView";
 import { CaptainLinks } from "./CaptainLinks";
+import { RevealPanel } from "./RevealPanel";
 
 type ChallengeStatus = "preparation" | "running" | "revealed";
 type DinnerStatus = "upcoming" | "open" | "closed";
@@ -31,6 +34,11 @@ interface Dinner {
 interface Dashboard {
   challenge: null | { id: string; name: string; status: ChallengeStatus };
   dinners: Dinner[];
+  reveal: null | {
+    canReveal: boolean;
+    blocker: "DINNERS_NOT_CLOSED" | "TEAM_WITHOUT_VOTES" | null;
+    blockedTeams: string[];
+  };
 }
 
 type AdminView = "dinners" | "links" | "setup";
@@ -64,6 +72,9 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
     dinnerId: string;
     missingCaptains: string[];
   }>(null);
+  const [revealConfirmation, setRevealConfirmation] = useState<
+    ErrorDetails["missingVotes"] | null
+  >(null);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -129,6 +140,28 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
     }
   }
 
+  async function revealResults(confirmMissing: boolean) {
+    setBusy("reveal");
+    setError("");
+    setNotice("");
+    try {
+      await apiRequest("/api/admin/reveal", jsonRequest("POST", { confirmMissing }));
+      setRevealConfirmation(null);
+      await loadDashboard();
+    } catch (caught) {
+      if (
+        caught instanceof ApiRequestError &&
+        caught.code === "MISSING_VOTES_CONFIRMATION_REQUIRED"
+      ) {
+        setRevealConfirmation(caught.details.missingVotes ?? []);
+      } else {
+        setError(caught instanceof Error ? caught.message : "Die Challenge konnte nicht aufgelöst werden.");
+      }
+    } finally {
+      setBusy("");
+    }
+  }
+
   if (loading && !dashboard) {
     return <main className="shell shell--centered"><Brand /><div className="loading" role="status">Die Abende werden angerichtet …</div></main>;
   }
@@ -158,14 +191,17 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
       </header>
 
       <nav className="tab-nav" aria-label="Organisation">
-        <button type="button" className={view === "dinners" ? "is-active" : ""} onClick={() => setView("dinners")}>Abende</button>
+        <button type="button" className={view === "dinners" ? "is-active" : ""} onClick={() => setView("dinners")}>{challenge.status === "revealed" ? "Ergebnis" : "Abende"}</button>
         <button type="button" className={view === "links" ? "is-active" : ""} onClick={() => setView("links")}>Captain-Links</button>
         <button type="button" className={view === "setup" ? "is-active" : ""} onClick={() => setView("setup")}>Setup</button>
       </nav>
 
       {view === "setup" && <ChallengeSetup onDone={() => void finishSetup()} />}
       {view === "links" && <CaptainLinks />}
-      {view === "dinners" && (
+      {view === "dinners" && challenge.status === "revealed" && (
+        <ResultsView endpoint="/api/admin/results" />
+      )}
+      {view === "dinners" && challenge.status !== "revealed" && (
         <div className="page-content">
           <header className="hero-heading">
             <div>
@@ -235,6 +271,15 @@ export function AdminArea({ onLogout }: { onLogout: () => Promise<void> }) {
               );
             })}
           </div>
+          {dashboard.reveal && (
+            <RevealPanel
+              readiness={dashboard.reveal}
+              confirmation={revealConfirmation ?? null}
+              busy={busy === "reveal"}
+              onReveal={(confirmMissing) => void revealResults(confirmMissing)}
+              onCancel={() => setRevealConfirmation(null)}
+            />
+          )}
         </div>
       )}
     </div>

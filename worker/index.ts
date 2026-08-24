@@ -33,6 +33,12 @@ import {
   readAdminDashboard,
   reopenDinner,
 } from "./persistence/dinners";
+import {
+  readRevealedResults,
+  revealChallenge,
+  RevealError,
+  ResultsUnavailableError,
+} from "./persistence/results";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",
@@ -158,6 +164,26 @@ async function changeDinner(
   return json({ dashboard: await readAdminDashboard(env.DB) });
 }
 
+async function revealResults(request: Request, env: Cloudflare.Env): Promise<Response> {
+  await requireRole(request, env.AUTH_SIGNING_SECRET, "admin");
+  requireSameOrigin(request);
+  const body = (await parseJson(request)) as Record<string, unknown>;
+  await revealChallenge(env.DB, body.confirmMissing === true);
+  return json({ revealed: true });
+}
+
+async function adminResults(request: Request, env: Cloudflare.Env): Promise<Response> {
+  await requireRole(request, env.AUTH_SIGNING_SECRET, "admin");
+  return json({ results: await readRevealedResults(env.DB) });
+}
+
+async function captainResults(request: Request, env: Cloudflare.Env): Promise<Response> {
+  const session = await requireRole(request, env.AUTH_SIGNING_SECRET, "captain");
+  return json({
+    results: await readRevealedResults(env.DB, session.challengeId),
+  });
+}
+
 async function captainBallot(
   request: Request,
   env: Cloudflare.Env,
@@ -217,6 +243,12 @@ async function route(request: Request, env: Cloudflare.Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/api/admin/captain-links") {
     return captainLinks(request, env);
   }
+  if (request.method === "POST" && url.pathname === "/api/admin/reveal") {
+    return revealResults(request, env);
+  }
+  if (request.method === "GET" && url.pathname === "/api/admin/results") {
+    return adminResults(request, env);
+  }
   const adminDinnerMatch = /^\/api\/admin\/dinners\/([^/]+)\/(open|close|reopen)$/.exec(
     url.pathname,
   );
@@ -234,6 +266,9 @@ async function route(request: Request, env: Cloudflare.Env): Promise<Response> {
     return json({
       dashboard: await readCaptainDashboard(env.DB, session.challengeId, session.teamId),
     });
+  }
+  if (request.method === "GET" && url.pathname === "/api/captain/results") {
+    return captainResults(request, env);
   }
   const captainBallotMatch = /^\/api\/captain\/dinners\/([^/]+)\/ballot$/.exec(
     url.pathname,
@@ -273,6 +308,15 @@ function knownError(error: unknown): Response | null {
         ? { missingCaptains: error.missingCaptains }
         : {}),
     });
+  }
+  if (error instanceof RevealError) {
+    return errorResponse(409, error.code, error.message, {
+      ...(error.missingVotes.length > 0 ? { missingVotes: error.missingVotes } : {}),
+      ...(error.blockedTeams.length > 0 ? { blockedTeams: error.blockedTeams } : {}),
+    });
+  }
+  if (error instanceof ResultsUnavailableError) {
+    return errorResponse(409, "RESULTS_NOT_REVEALED", error.message);
   }
   if (error instanceof CaptainDataError) {
     return errorResponse(error.status, error.code, error.message);
