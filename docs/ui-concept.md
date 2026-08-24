@@ -191,7 +191,8 @@ Nach erfolgreichem Speichern landet der Organisator nicht in einem generischen D
 
 ### 6.4 Persönliche Zugänge
 
-- Pro Captain und Jury-Mitglied eine kompakte Zeile mit Name, Rolle beziehungsweise Team und primärer Aktion „Teilen“.
+- Pro Captain und Jury-Mitglied eine kompakte Karte mit Name, ausgeschriebener Rolle beziehungsweise Team und primärer Aktion „Teilen“.
+- Auf Smartphones steht die Identität in einer eigenen Zeile über den klar zugeordneten Aktionen „Teilen“ und „QR-Code“; ab Tabletbreite darf die Karte wieder einzeilig werden.
 - Wenn Web Share verfügbar ist, öffnet „Teilen“ den nativen Share-Dialog; andernfalls wird der Link kopiert.
 - Nach Kopieren: inline „Link kopiert“ statt flüchtiger Meldung ohne Kontext.
 - Die sekundäre Aktion „QR-Code“ öffnet genau einen Dialog mit großem, lokal im Browser erzeugtem QR-Code.
@@ -277,7 +278,7 @@ Eine kurze Aufblendbewegung von 300–500 ms ist erlaubt. Bei reduzierter Bewegu
 | Bereich | Smartphone | Tablet/Desktop |
 |---|---|---|
 | Captain-Start | eine Spalte, Hero zuerst | max. 560 px, bewusst kompakt statt gestreckt |
-| Bewertung | eine Spalte, sticky Speichern | max. 680 px, keine Mehrspalten-Ratings |
+| Bewertung | eine kompakte Spalte, sticky Fortschritt und Speichern | bis zwei kompakte Spalten, konsistente Breite der Rating-Gruppen |
 | Einrichtung | drei sequenzielle Schritte | zweispaltig mit persistenter Zusammenfassung |
 | Verwaltung | Karten und aufklappbare Statuslisten | Hauptzustand links, Übersicht/Links rechts |
 | Ergebnis | vertikale Gewinnerkarten | Kategorieübersicht und Rangliste bis max. 1100 px |
@@ -313,6 +314,7 @@ Diese Checks ergänzen die fachlichen Akzeptanzkriterien. Eine formale Accessibi
 | #6 | Captain-Startseite, Rating-Komponente, Speicher- und Fehlerzustände |
 | #7 | zweistufige Siegerehrung, Rangliste und Gleichstände |
 | #8 | Responsive-, Browser-, Tastatur-, Fokus- und Fehlerprüfungen |
+| #15 | lesbare persönliche Zugänge, kompakter Stimmzettel, neutrale Ausgangs- und gezielte Fehlerzustände |
 
 ## 11. Bewusste Nicht-Elemente
 
