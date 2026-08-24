@@ -1,0 +1,222 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Mediterranean Table UI concept</title>
+  <desc id="desc">Four mobile mockups show the captain home, rating, organizer status, and final reveal screens.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#26322C" flood-opacity="0.14"/>
+    </filter>
+    <clipPath id="p1"><rect x="72" y="194" width="316" height="666" rx="32"/></clipPath>
+    <clipPath id="p2"><rect x="452" y="194" width="316" height="666" rx="32"/></clipPath>
+    <clipPath id="p3"><rect x="832" y="194" width="316" height="666" rx="32"/></clipPath>
+    <clipPath id="p4"><rect x="1212" y="194" width="316" height="666" rx="32"/></clipPath>
+    <style>
+      .ui { font-family: Arial, Helvetica, sans-serif; fill: #26322C; }
+      .display { font-family: Georgia, 'Times New Roman', serif; fill: #26322C; }
+      .meta { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+      .body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 700; }
+      .phone-label { font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 700; fill: #26322C; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="#EDE5D7"/>
+  <circle cx="1510" cy="70" r="170" fill="#D6A84B" opacity="0.14"/>
+  <circle cx="80" cy="930" r="210" fill="#2F6F78" opacity="0.08"/>
+  <text x="60" y="70" class="meta" fill="#C54A32">MEDITERRANEAN TABLE</text>
+  <text x="60" y="118" class="display" font-size="42" font-weight="700">Warm. Klar. Ein bisschen Urlaub.</text>
+  <text x="60" y="150" class="ui" font-size="16" fill="#667066">Vier Kernmomente · mobile-first · ohne Navigationsballast</text>
+
+  <g transform="translate(1120 70)">
+    <rect x="0" y="0" width="42" height="18" rx="9" fill="#F7F1E6"/>
+    <rect x="52" y="0" width="42" height="18" rx="9" fill="#C54A32"/>
+    <rect x="104" y="0" width="42" height="18" rx="9" fill="#64724C"/>
+    <rect x="156" y="0" width="42" height="18" rx="9" fill="#2F6F78"/>
+    <rect x="208" y="0" width="42" height="18" rx="9" fill="#D6A84B"/>
+  </g>
+
+  <!-- Phone 1: captain home -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="180" width="340" height="700" rx="44" fill="#202A25"/>
+    <rect x="72" y="194" width="316" height="666" rx="32" fill="#F7F1E6"/>
+  </g>
+  <g clip-path="url(#p1)">
+    <circle cx="348" cy="224" r="82" fill="#D6A84B" opacity="0.22"/>
+    <path d="M320 195c20 12 33 31 39 53M304 206c17 9 28 23 34 42" fill="none" stroke="#C54A32" stroke-width="2" opacity="0.55"/>
+    <text x="94" y="233" class="meta" fill="#C54A32">CUCINA CHALLENGE</text>
+    <text x="94" y="272" class="display" font-size="27" font-weight="700">Gargano</text>
+    <text x="94" y="300" class="display" font-size="27" font-weight="700">Kochduell</text>
+
+    <rect x="94" y="324" width="238" height="34" rx="17" fill="#FFFDF8" stroke="#D7CEBF"/>
+    <circle cx="111" cy="341" r="8" fill="#64724C"/>
+    <text x="127" y="345" class="small" font-weight="700">Lea · Team Rosmarino</text>
+
+    <rect x="88" y="382" width="254" height="202" rx="22" fill="#C54A32"/>
+    <circle cx="311" cy="418" r="48" fill="#FFFDF8" opacity="0.12"/>
+    <circle cx="311" cy="418" r="32" fill="none" stroke="#FFFDF8" opacity="0.24"/>
+    <text x="110" y="416" class="meta" fill="#FFFDF8">HEUTE · 24. AUGUST</text>
+    <text x="110" y="457" class="display" font-size="25" font-weight="700" fill="#FFFDF8">Team Limone</text>
+    <text x="110" y="483" class="body" fill="#FFFDF8">ist bereit für eure Wertung.</text>
+    <rect x="108" y="515" width="214" height="48" rx="13" fill="#FFFDF8"/>
+    <text x="215" y="545" class="label" fill="#9E3525" text-anchor="middle">Jetzt bewerten  →</text>
+
+    <text x="94" y="622" class="meta" fill="#667066">DIE ABENDE</text>
+    <circle cx="104" cy="652" r="10" fill="#64724C"/>
+    <path d="M99 652l4 4 7-8" fill="none" stroke="#FFFDF8" stroke-width="2" stroke-linecap="round"/>
+    <text x="124" y="656" class="body" font-weight="700">Team Mare</text>
+    <text x="316" y="656" class="small" fill="#64724C" text-anchor="end">Bewertet</text>
+    <line x1="104" y1="666" x2="104" y2="708" stroke="#D7CEBF" stroke-width="2"/>
+    <circle cx="104" cy="700" r="10" fill="#C54A32"/>
+    <text x="124" y="704" class="body" font-weight="700">Team Limone</text>
+    <text x="316" y="704" class="small" fill="#C54A32" text-anchor="end">Jetzt offen</text>
+    <line x1="104" y1="714" x2="104" y2="756" stroke="#D7CEBF" stroke-width="2"/>
+    <circle cx="104" cy="748" r="10" fill="#FFFDF8" stroke="#64724C" stroke-width="2"/>
+    <text x="124" y="752" class="body" font-weight="700">Team Rosmarino</text>
+    <text x="316" y="752" class="small" fill="#667066" text-anchor="end">Euer Abend</text>
+
+    <rect x="94" y="788" width="238" height="44" rx="14" fill="#FFFDF8"/>
+    <text x="213" y="807" class="small" text-anchor="middle" fill="#667066">Zwischenstände bleiben bis zur</text>
+    <text x="213" y="822" class="small" text-anchor="middle" fill="#667066">Siegerehrung geheim.</text>
+  </g>
+
+  <!-- Phone 2: rating -->
+  <g filter="url(#shadow)">
+    <rect x="440" y="180" width="340" height="700" rx="44" fill="#202A25"/>
+    <rect x="452" y="194" width="316" height="666" rx="32" fill="#F7F1E6"/>
+  </g>
+  <g clip-path="url(#p2)">
+    <text x="476" y="230" class="body" fill="#2F6F78">←  Zurück</text>
+    <text x="476" y="268" class="display" font-size="26" font-weight="700">Team Limone</text>
+    <text x="476" y="291" class="small" fill="#667066">3 von 5 Kategorien bewertet</text>
+    <rect x="476" y="307" width="268" height="5" rx="2.5" fill="#D7CEBF"/>
+    <rect x="476" y="307" width="161" height="5" rx="2.5" fill="#C54A32"/>
+
+    <g transform="translate(476 340)">
+      <text x="0" y="0" class="label">Nachschlag-Faktor</text>
+      <text x="0" y="18" class="small" fill="#667066">Wie lecker war’s?</text>
+      <g transform="translate(0 30)">
+        <rect x="0" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="22.5" y="26" class="label" text-anchor="middle">1</text>
+        <rect x="55" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="77.5" y="26" class="label" text-anchor="middle">2</text>
+        <rect x="110" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="132.5" y="26" class="label" text-anchor="middle">3</text>
+        <rect x="165" y="0" width="45" height="42" rx="11" fill="#C54A32"/><text x="187.5" y="26" class="label" fill="#FFFDF8" text-anchor="middle">4 ✓</text>
+        <rect x="220" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="242.5" y="26" class="label" text-anchor="middle">5</text>
+      </g>
+    </g>
+
+    <g transform="translate(476 437)">
+      <text x="0" y="0" class="label">Das Auge isst mit</text>
+      <text x="0" y="18" class="small" fill="#667066">Wie appetitlich sah das Essen aus?</text>
+      <g transform="translate(0 30)">
+        <rect x="0" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="22.5" y="26" class="label" text-anchor="middle">1</text>
+        <rect x="55" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="77.5" y="26" class="label" text-anchor="middle">2</text>
+        <rect x="110" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="132.5" y="26" class="label" text-anchor="middle">3</text>
+        <rect x="165" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="187.5" y="26" class="label" text-anchor="middle">4</text>
+        <rect x="220" y="0" width="45" height="42" rx="11" fill="#C54A32"/><text x="242.5" y="26" class="label" fill="#FFFDF8" text-anchor="middle">5 ✓</text>
+      </g>
+    </g>
+
+    <g transform="translate(476 534)">
+      <text x="0" y="0" class="label">Küchen-Coup</text>
+      <text x="0" y="18" class="small" fill="#667066">Wie kreativ und stimmig war das Menü?</text>
+      <g transform="translate(0 30)">
+        <rect x="0" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="22.5" y="26" class="label" text-anchor="middle">1</text>
+        <rect x="55" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="77.5" y="26" class="label" text-anchor="middle">2</text>
+        <rect x="110" y="0" width="45" height="42" rx="11" fill="#C54A32"/><text x="132.5" y="26" class="label" fill="#FFFDF8" text-anchor="middle">3 ✓</text>
+        <rect x="165" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="187.5" y="26" class="label" text-anchor="middle">4</text>
+        <rect x="220" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="242.5" y="26" class="label" text-anchor="middle">5</text>
+      </g>
+    </g>
+
+    <g transform="translate(476 631)">
+      <text x="0" y="0" class="label">Punktlandung</text>
+      <text x="0" y="18" class="small" fill="#667066">Garpunkt, Temperatur und Timing?</text>
+      <g transform="translate(0 30)">
+        <rect x="0" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="22.5" y="26" class="label" text-anchor="middle">1</text>
+        <rect x="55" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="77.5" y="26" class="label" text-anchor="middle">2</text>
+        <rect x="110" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="132.5" y="26" class="label" text-anchor="middle">3</text>
+        <rect x="165" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="187.5" y="26" class="label" text-anchor="middle">4</text>
+        <rect x="220" y="0" width="45" height="42" rx="11" fill="#FFFDF8" stroke="#D7CEBF"/><text x="242.5" y="26" class="label" text-anchor="middle">5</text>
+      </g>
+    </g>
+
+    <rect x="452" y="780" width="316" height="80" fill="#FFFDF8" opacity="0.98"/>
+    <line x1="452" y1="780" x2="768" y2="780" stroke="#D7CEBF"/>
+    <rect x="476" y="794" width="268" height="48" rx="13" fill="#C54A32"/>
+    <text x="610" y="824" class="label" fill="#FFFDF8" text-anchor="middle">Bewertung speichern</text>
+  </g>
+
+  <!-- Phone 3: organizer -->
+  <g filter="url(#shadow)">
+    <rect x="820" y="180" width="340" height="700" rx="44" fill="#202A25"/>
+    <rect x="832" y="194" width="316" height="666" rx="32" fill="#F7F1E6"/>
+  </g>
+  <g clip-path="url(#p3)">
+    <circle cx="1122" cy="210" r="72" fill="#2F6F78" opacity="0.12"/>
+    <text x="856" y="232" class="meta" fill="#2F6F78">ORGANISATION</text>
+    <text x="856" y="271" class="display" font-size="27" font-weight="700">Heute im Blick</text>
+    <text x="856" y="296" class="body" fill="#667066">Gargano Kochduell</text>
+
+    <rect x="848" y="324" width="284" height="278" rx="22" fill="#FFFDF8"/>
+    <rect x="866" y="344" width="66" height="24" rx="12" fill="#F4DCD4"/>
+    <text x="899" y="360" class="meta" fill="#9E3525" text-anchor="middle">OFFEN</text>
+    <text x="866" y="401" class="display" font-size="23" font-weight="700">Team Limone</text>
+    <text x="866" y="428" class="small" fill="#667066">24. August</text>
+    <text x="866" y="474" class="display" font-size="34" font-weight="700">3 von 4</text>
+    <text x="866" y="496" class="small" fill="#667066">Stimmen abgegeben</text>
+
+    <circle cx="874" cy="528" r="8" fill="#64724C"/><path d="M870 528l3 3 6-7" fill="none" stroke="#FFFDF8" stroke-width="1.6"/>
+    <text x="890" y="532" class="small">Lea · abgegeben</text>
+    <circle cx="1007" cy="528" r="8" fill="#D6A84B"/>
+    <text x="1023" y="532" class="small">Ben · ausstehend</text>
+    <circle cx="874" cy="555" r="8" fill="#FFFDF8" stroke="#667066"/>
+    <text x="890" y="559" class="small">Mia · eigenes Team</text>
+
+    <rect x="866" y="570" width="248" height="48" rx="13" fill="#C54A32"/>
+    <text x="990" y="600" class="label" fill="#FFFDF8" text-anchor="middle">Abend schließen</text>
+
+    <text x="856" y="650" class="meta" fill="#667066">ALS NÄCHSTES</text>
+    <rect x="848" y="670" width="284" height="78" rx="17" fill="#FFFDF8" stroke="#D7CEBF"/>
+    <text x="866" y="699" class="label">Team Rosmarino</text>
+    <text x="866" y="722" class="small" fill="#667066">26. August · euer Abend</text>
+    <text x="1110" y="709" class="body" fill="#2F6F78" text-anchor="end">Bearbeiten</text>
+
+    <rect x="848" y="772" width="136" height="46" rx="13" fill="#FFFDF8" stroke="#D7CEBF"/>
+    <text x="916" y="801" class="small" font-weight="700" text-anchor="middle">Captain-Links</text>
+    <rect x="996" y="772" width="136" height="46" rx="13" fill="#FFFDF8" stroke="#D7CEBF"/>
+    <text x="1064" y="801" class="small" font-weight="700" text-anchor="middle">Einrichtung</text>
+  </g>
+
+  <!-- Phone 4: reveal -->
+  <g filter="url(#shadow)">
+    <rect x="1200" y="180" width="340" height="700" rx="44" fill="#202A25"/>
+    <rect x="1212" y="194" width="316" height="666" rx="32" fill="#26322C"/>
+  </g>
+  <g clip-path="url(#p4)">
+    <circle cx="1370" cy="305" r="118" fill="#D6A84B" opacity="0.12"/>
+    <circle cx="1370" cy="305" r="78" fill="none" stroke="#D6A84B" stroke-width="2" opacity="0.8"/>
+    <circle cx="1370" cy="305" r="58" fill="#D6A84B"/>
+    <path d="M1370 270l9 22 24 2-18 16 6 24-21-13-21 13 6-24-18-16 24-2z" fill="#26322C"/>
+    <text x="1370" y="420" class="meta" fill="#D6A84B" text-anchor="middle">DIE GOLDENE KOCHMÜTZE</text>
+    <text x="1370" y="463" class="display" font-size="25" font-weight="700" fill="#FFFDF8" text-anchor="middle">Die Kochmütze geht an …</text>
+
+    <rect x="1244" y="500" width="252" height="164" rx="24" fill="#FFFDF8"/>
+    <text x="1370" y="538" class="meta" fill="#9E3525" text-anchor="middle">1. PLATZ</text>
+    <text x="1370" y="582" class="display" font-size="27" font-weight="700" text-anchor="middle">Team Limone</text>
+    <text x="1370" y="616" class="display" font-size="26" font-weight="700" fill="#C54A32" text-anchor="middle">4,72</text>
+    <text x="1370" y="642" class="small" fill="#667066" text-anchor="middle">Goldene Kochmütze</text>
+
+    <rect x="1244" y="690" width="252" height="54" rx="16" fill="#33413A" stroke="#64724C"/>
+    <text x="1264" y="722" class="body" fill="#FFFDF8">2 · Team Mare</text>
+    <text x="1476" y="722" class="body" fill="#D6A84B" text-anchor="end">4,48</text>
+    <rect x="1244" y="756" width="252" height="54" rx="16" fill="#33413A" stroke="#64724C"/>
+    <text x="1264" y="788" class="body" fill="#FFFDF8">3 · Team Rosmarino</text>
+    <text x="1476" y="788" class="body" fill="#D6A84B" text-anchor="end">4,31</text>
+    <text x="1370" y="835" class="small" fill="#C5CEC7" text-anchor="middle">Berechnet aus 4 Bewertungen je Team</text>
+  </g>
+
+  <text x="230" y="922" class="phone-label" text-anchor="middle">1 · Aktuelle Aufgabe</text>
+  <text x="610" y="922" class="phone-label" text-anchor="middle">2 · Bewerten</text>
+  <text x="990" y="922" class="phone-label" text-anchor="middle">3 · Steuern</text>
+  <text x="1370" y="922" class="phone-label" text-anchor="middle">4 · Enthüllen</text>
+  <text x="800" y="958" class="small" fill="#667066" text-anchor="middle">Kalkstein · Terrakotta · Olive · Meer · Sonnengold nur für den großen Moment</text>
+</svg>
