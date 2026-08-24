@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "voting",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "2ef2eb66-478f-489b-8821-e4940047fdf1",
       "migrations_dir": "migrations"
     }
   ]
