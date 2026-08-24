@@ -74,7 +74,11 @@ export function CaptainBallot({
     if (unanswered.length > 0) {
       setMissing(unanswered);
       setError("Bitte bewerte alle fünf Kategorien.");
-      requestAnimationFrame(() => document.getElementById(`category-${unanswered[0]}`)?.focus());
+      requestAnimationFrame(() => {
+        const firstUnanswered = document.getElementById(`category-${unanswered[0]}`);
+        firstUnanswered?.focus({ preventScroll: true });
+        firstUnanswered?.scrollIntoView({ block: "center" });
+      });
       return;
     }
 
@@ -139,6 +143,7 @@ export function CaptainBallot({
                   id={`category-${category.id}`}
                   key={category.id}
                   tabIndex={-1}
+                  aria-invalid={invalid}
                   aria-describedby={invalid ? `category-error-${category.id}` : undefined}
                 >
                   <legend><span>{index + 1}</span><strong>{category.name}</strong></legend>
@@ -157,9 +162,6 @@ export function CaptainBallot({
                         <span><strong>{score}</strong><small aria-hidden="true">{selected === score ? "✓" : ""}</small></span>
                       </label>
                     ))}
-                  </div>
-                  <div className="score-caption" aria-live="polite">
-                    {selected ? `${selected} · ${SCORE_LABELS[selected]}` : "Noch keine Auswahl"}
                   </div>
                   {invalid && <div className="field-error" id={`category-error-${category.id}`}>Bitte hier noch eine Bewertung wählen.</div>}
                 </fieldset>
