@@ -1,0 +1,38 @@
+{
+  "name": "voting",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "npm run build && vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --pretty false",
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply voting --local",
+    "db:migrate:remote": "wrangler d1 migrations apply voting --remote",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.53.1",
+    "@cloudflare/vitest-plugin": "1.0.0",
+    "@cloudflare/workers-types": "5.20260823.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.0",
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
+  }
+}
