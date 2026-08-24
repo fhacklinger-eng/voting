@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { DEFAULT_CATEGORIES } from "../worker/domain/challenge-setup";
 
 export async function clearDomainData(): Promise<void> {
   await env.DB.batch([
@@ -76,4 +77,74 @@ export async function seedChallenge(): Promise<void> {
         now,
       ),
   ]);
+}
+
+export async function seedPreparedChallenge(): Promise<{
+  challengeId: string;
+  teamIds: [string, string, string];
+  dinnerIds: [string, string, string];
+}> {
+  const challengeId = "prepared-challenge";
+  const teamIds: [string, string, string] = [
+    "prepared-team-1",
+    "prepared-team-2",
+    "prepared-team-3",
+  ];
+  const dinnerIds: [string, string, string] = [
+    "prepared-dinner-1",
+    "prepared-dinner-2",
+    "prepared-dinner-3",
+  ];
+  const names = [
+    { team: "Team Limone", captain: "Anna" },
+    { team: "Team Oliva", captain: "Ben" },
+    { team: "Team Pomodoro", captain: "Carla" },
+  ];
+  const dates = ["2026-08-25", "2026-08-27", "2026-08-29"];
+  const now = "2026-08-24T10:00:00.000Z";
+
+  await env.DB.batch([
+    env.DB
+      .prepare(
+        "INSERT INTO challenges (id, name, status, created_at, updated_at) VALUES (?, ?, 'preparation', ?, ?)",
+      )
+      .bind(challengeId, "Gargano Koch-Challenge", now, now),
+    ...DEFAULT_CATEGORIES.map((category, index) =>
+      env.DB
+        .prepare(
+          `INSERT INTO categories (id, challenge_id, position, name, name_key, question)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          `prepared-category-${index + 1}`,
+          challengeId,
+          index + 1,
+          category.name,
+          category.name.toLocaleLowerCase("de-DE"),
+          category.question,
+        ),
+    ),
+    ...teamIds.flatMap((teamId, index) => [
+      env.DB
+        .prepare(
+          "INSERT INTO teams (id, challenge_id, name, name_key, captain_name) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(
+          teamId,
+          challengeId,
+          names[index].team,
+          names[index].team.toLocaleLowerCase("de-DE"),
+          names[index].captain,
+        ),
+      env.DB
+        .prepare(
+          `INSERT INTO dinners (
+             id, challenge_id, team_id, dinner_date, status, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, 'upcoming', ?, ?)`,
+        )
+        .bind(dinnerIds[index], challengeId, teamId, dates[index], now, now),
+    ]),
+  ]);
+
+  return { challengeId, teamIds, dinnerIds };
 }

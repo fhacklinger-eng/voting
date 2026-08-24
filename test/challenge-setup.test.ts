@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import worker from "../worker";
 import { DEFAULT_CATEGORIES } from "../worker/domain/challenge-setup";
 import { clearDomainData } from "./fixtures";
+import { adminSession, apiRequest } from "./http";
 
 const setup = {
   name: "Gargano Koch-Challenge",
@@ -46,8 +47,10 @@ interface ChallengeResponse {
   };
 }
 
+let adminCookie: string;
+
 function request(body: unknown): Request {
-  return new Request("https://voting.example/api/admin/challenge", {
+  return apiRequest("/api/admin/challenge", adminCookie, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -78,12 +81,13 @@ function editablePayload(challenge: ChallengeResponse["challenge"]) {
 
 beforeEach(async () => {
   await clearDomainData();
+  adminCookie = await adminSession();
 });
 
 describe("challenge setup API", () => {
   it("starts empty and creates a complete challenge atomically", async () => {
     const initial = await worker.fetch(
-      new Request("https://voting.example/api/admin/challenge"),
+      apiRequest("/api/admin/challenge", adminCookie),
       env,
     );
     expect(await initial.json()).toEqual({ challenge: null });
