@@ -3,7 +3,9 @@
 Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2, die
 Challenge-Einrichtung aus Issue #3 sowie Zugang, Abendsteuerung und Captain-
 Voting aus den Issues #4 bis #6, die gemeinsame Ergebnisauflösung aus Issue #7
-sowie QR-Zugänge, Jury und die neue Standardkategorie aus #11 bis #13.
+sowie QR-Zugänge, Jury und die neue Standardkategorie aus #11 bis #13. Das
+abschließende Quality Gate aus #8 und die mobile Verdichtung aus #15 sind
+ebenfalls enthalten.
 
 ## Voraussetzungen
 
@@ -15,6 +17,13 @@ sowie QR-Zugänge, Jury und die neue Standardkategorie aus #11 bis #13.
 
 ```bash
 npm ci
+cp .dev.vars.example .dev.vars
+```
+
+Danach in `.dev.vars` beide Platzhalter durch unterschiedliche zufällige Werte
+mit mindestens 32 Zeichen ersetzen und starten:
+
+```bash
 npm run db:migrate:local
 npm run dev
 ```
@@ -36,14 +45,15 @@ werden. Die Werte müssen voneinander verschieden sein.
 
 ## Prüfen
 
-```bash
-npm test
-npm run typecheck
-npm run build
-```
+Das vollständige lokale Quality Gate läuft mit `npm run verify`. Es führt
+Typprüfung, alle automatisierten Tests und den Produktions-Build aus. Nur die
+Tests können gezielt mit `npm test` gestartet werden.
 
 Die Tests laufen in der Cloudflare-Workers-Laufzeit mit einer isolierten
-lokalen D1-Datenbank. Die Migrationen werden dabei automatisiert angewendet.
+lokalen D1-Datenbank. Die Migrationen werden dabei automatisiert auf eine leere
+Datenbank angewendet. `test/mvp-journey.test.ts` durchläuft zusätzlich den
+kompletten API-Weg von der Einrichtung mit drei Teams und Jury über alle
+Kochabende bis zur identischen Ergebnisanzeige für Orga und Stimmberechtigte.
 
 ## Persönlichen Zugang öffnen
 
@@ -187,11 +197,16 @@ notwendig. Vor dem ersten Deployment sind einmalig folgende Schritte nötig:
 
    Wrangler fragt jeden Wert verdeckt ab. Secrets niemals in
    `wrangler.jsonc`, GitHub-Issues oder Logs eintragen.
-6. Build und Tests ausführen: `npm test && npm run build`.
+6. Vollständiges Quality Gate ausführen: `npm run verify`.
 7. Auf die `workers.dev`-Adresse deployen: `npm run deploy`.
 8. `GET /api/health` aufrufen. Erwartet werden HTTP 200 und `database: ready`.
 9. Den Admin-Link mit dem produktiven Secret öffnen:
    `https://<worker>.workers.dev/#/access/admin/<ADMIN_ACCESS_TOKEN>`.
+
+Danach wird der reproduzierbare Ablauf aus der
+[MVP-Abnahme](acceptance.md) mindestens einmal in der bereitgestellten
+Cloudflare-Umgebung ausgeführt. Er enthält auch die Browser-, Responsive-,
+Fehler- und Netzwerkprüfung, die automatisierte API-Tests nicht ersetzen.
 
 Wenn die D1-Datenbank bereits angelegt und ihre ID in `wrangler.jsonc`
 eingetragen ist, wird sie nicht erneut erstellt. Für #11 bis #13 werden weder

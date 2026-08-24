@@ -10,6 +10,66 @@ Primärer Einsatzfall: private Koch-Challenge im Urlaub
 - [UI-Konzept](docs/ui-concept.md)
 - [Grafischer UI-Entwurf](docs/ui-concept.svg)
 - [Entwicklung und Cloudflare-Betrieb](docs/development.md)
+- [MVP-Abnahme und Browser-Matrix](docs/acceptance.md)
+
+## Schnellstart und Quality Gate
+
+Vorausgesetzt werden Node.js 22 oder neuer und npm. Nach dem Klonen:
+
+```bash
+npm ci
+cp .dev.vars.example .dev.vars
+```
+
+In `.dev.vars` müssen die beiden Platzhalter durch unterschiedliche zufällige
+Werte mit mindestens 32 Zeichen ersetzt werden. Auf macOS können sie jeweils
+mit `openssl rand -hex 32` erzeugt werden. Anschließend:
+
+```bash
+npm run db:migrate:local
+npm run dev
+```
+
+Der lokale Admin-Zugang lautet
+`http://localhost:5173/#/access/admin/<ADMIN_ACCESS_TOKEN>`. Das vollständige
+automatisierte Quality Gate läuft mit einem Befehl:
+
+```bash
+npm run verify
+```
+
+Es umfasst Typprüfung, alle automatisierten Tests einschließlich des
+durchgängigen MVP-Ablaufs sowie den Produktions-Build. Für Cloudflare werden
+zusätzlich ein Workers-/D1-fähiger Account, die D1-Bindung `DB` und die beiden
+Secrets `ADMIN_ACCESS_TOKEN` und `AUTH_SIGNING_SECRET` benötigt. Die exakte
+einmalige Einrichtung, Migration, das Deployment und der Health-Check sind in
+der [Betriebsanleitung](docs/development.md#erstes-cloudflare-deployment)
+beschrieben. Keine Secrets gehören in Git, `wrangler.jsonc`, Issues oder Logs.
+
+Einmalige Cloudflare-Schritte in der erforderlichen Reihenfolge:
+
+1. `npx wrangler login` ausführen.
+2. Falls noch keine passende Datenbank existiert,
+   `npx wrangler d1 create voting --jurisdiction=eu` ausführen und die
+   ausgegebene `database_id` in `wrangler.jsonc` eintragen.
+3. `npm run db:migrate:remote` ausführen.
+4. Mit `npx wrangler secret put ADMIN_ACCESS_TOKEN` und
+   `npx wrangler secret put AUTH_SIGNING_SECRET` zwei unterschiedliche,
+   zufällige Werte mit mindestens 32 Zeichen hinterlegen.
+5. `npm run verify` und anschließend `npm run deploy` ausführen.
+6. Unter `https://<worker>.workers.dev/api/health` HTTP 200 und
+   `database: ready` prüfen.
+7. Den vollständigen Ablauf und die Pflichtbrowser anhand der
+   [MVP-Abnahme](docs/acceptance.md) prüfen. Erst danach die Custom Domain
+   `voting.kivio.uk` an denselben Worker binden.
+
+Migrationen und Deployment können sicher erneut ausgeführt werden und
+überspringen bereits erledigte Migrationen. Die D1-Datenbank wird nur einmal
+angelegt. Ein erneutes Setzen der Secrets ist eine Rotation und macht je nach
+Secret den Admin-Link oder sämtliche persönlichen Links und Sessions ungültig;
+das geschieht nur bewusst. Bei
+einem Migrationsfehler wird nicht deployt, sondern mit einer neuen
+Vorwärtsmigration korrigiert. Ein Remote-Reset gehört nicht zum Deployment.
 
 ## 1. Produktidee in einem Satz
 
