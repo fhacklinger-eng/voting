@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ApiRequestError, apiRequest, jsonRequest } from "./api";
 
 const DEFAULT_CATEGORIES = [
   { name: "Nachschlag-Faktor", question: "Wie lecker war’s?" },
@@ -41,10 +42,6 @@ interface SetupForm {
   }>;
   juryMembers: Array<{ id?: string; name: string }>;
   categories: Array<{ id?: string; name: string; question: string }>;
-}
-
-interface ApiError {
-  error?: { message?: string; fieldErrors?: Record<string, string> };
 }
 
 const emptyTeam = () => ({
@@ -184,11 +181,10 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/admin/challenge", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("LOAD_FAILED");
-        return (await response.json()) as { challenge: ChallengeDto | null };
-      })
+    apiRequest<{ challenge: ChallengeDto | null }>(
+      "/api/admin/challenge",
+      { signal: controller.signal },
+    )
       .then(({ challenge: loaded }) => {
         if (loaded) {
           setChallenge(loaded);
@@ -198,7 +194,11 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setPageError("Die Challenge konnte nicht geladen werden. Bitte lade die Seite erneut.");
+        setPageError(
+          error instanceof ApiRequestError
+            ? error.message
+            : "Die Challenge konnte nicht geladen werden. Bitte lade die Seite erneut.",
+        );
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
@@ -284,31 +284,16 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
     setPageError("");
     setNotice("");
     try {
-      const response = await fetch("/api/admin/challenge", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = await apiRequest<{ challenge: ChallengeDto }>(
+        "/api/admin/challenge",
+        jsonRequest("PUT", {
           name: form.name,
           teams: form.teams.map(({ dinnerStatus: _dinnerStatus, ...team }) => team),
           juryMembers: form.juryMembers,
           categories: form.categories,
         }),
-      });
-      const payload = (await response.json()) as { challenge?: ChallengeDto } & ApiError;
-      if (!response.ok || !payload.challenge) {
-        if (payload.error?.fieldErrors) {
-          setFieldErrors(payload.error.fieldErrors);
-          const first = Object.keys(payload.error.fieldErrors)[0];
-          if (first === "name") setStep(1);
-          else if (first?.startsWith("teams") || first?.startsWith("juryMembers")) setStep(2);
-          else {
-            setStep(3);
-            setCategoriesOpen(true);
-          }
-          focusFirstError(payload.error.fieldErrors);
-        }
-        throw new Error(payload.error?.message ?? "Die Challenge konnte nicht gespeichert werden.");
-      }
+      );
+      if (!payload?.challenge) throw new Error("INVALID_SERVER_RESPONSE");
 
       setChallenge(payload.challenge);
       setForm(formFromChallenge(payload.challenge));
@@ -319,9 +304,21 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
           : "Die geänderten Termine sind gespeichert.",
       );
       setShowSummary(true);
-    } catch (error) {
+    } catch (error: unknown) {
+      if (error instanceof ApiRequestError && error.details.fieldErrors) {
+        const serverErrors = error.details.fieldErrors;
+        setFieldErrors(serverErrors);
+        const first = Object.keys(serverErrors)[0];
+        if (first === "name") setStep(1);
+        else if (first?.startsWith("teams") || first?.startsWith("juryMembers")) setStep(2);
+        else {
+          setStep(3);
+          setCategoriesOpen(true);
+        }
+        focusFirstError(serverErrors);
+      }
       setPageError(
-        error instanceof Error
+        error instanceof ApiRequestError
           ? error.message
           : "Die Challenge konnte nicht gespeichert werden. Bitte versuche es erneut.",
       );
