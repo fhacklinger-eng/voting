@@ -1,8 +1,14 @@
 export interface ErrorDetails {
-  missingCaptains?: string[];
+  missingVoters?: Array<{
+    voterId: string;
+    role: "captain" | "jury";
+    displayName: string;
+    teamName: string | null;
+  }>;
   missingVotes?: Array<{
-    captainName: string;
-    captainTeamName: string;
+    displayName: string;
+    role: "captain" | "jury";
+    teamName: string | null;
     dinnerId: string;
     dinnerTeamName: string;
     dinnerDate: string;
@@ -53,16 +59,26 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
         ? error.message
         : "Das hat gerade nicht funktioniert. Bitte versuche es erneut.",
       {
-        missingCaptains: Array.isArray(error.missingCaptains)
-          ? error.missingCaptains.filter((name): name is string => typeof name === "string")
+        missingVoters: Array.isArray(error.missingVoters)
+          ? error.missingVoters.filter((voter): voter is NonNullable<ErrorDetails["missingVoters"]>[number] => {
+              if (!voter || typeof voter !== "object") return false;
+              const record = voter as Record<string, unknown>;
+              return (
+                typeof record.voterId === "string" &&
+                (record.role === "captain" || record.role === "jury") &&
+                typeof record.displayName === "string" &&
+                (typeof record.teamName === "string" || record.teamName === null)
+              );
+            })
           : undefined,
         missingVotes: Array.isArray(error.missingVotes)
           ? error.missingVotes.filter((vote): vote is NonNullable<ErrorDetails["missingVotes"]>[number] => {
               if (!vote || typeof vote !== "object") return false;
               const record = vote as Record<string, unknown>;
               return (
-                typeof record.captainName === "string" &&
-                typeof record.captainTeamName === "string" &&
+                typeof record.displayName === "string" &&
+                (record.role === "captain" || record.role === "jury") &&
+                (typeof record.teamName === "string" || record.teamName === null) &&
                 typeof record.dinnerId === "string" &&
                 typeof record.dinnerTeamName === "string" &&
                 typeof record.dinnerDate === "string"

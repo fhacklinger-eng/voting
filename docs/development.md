@@ -2,8 +2,8 @@
 
 Diese Anleitung gilt für das MVP-Grundgerüst aus Issue #2, die
 Challenge-Einrichtung aus Issue #3 sowie Zugang, Abendsteuerung und Captain-
-Voting aus den Issues #4 bis #6 und die gemeinsame Ergebnisauflösung aus
-Issue #7.
+Voting aus den Issues #4 bis #6, die gemeinsame Ergebnisauflösung aus Issue #7
+sowie QR-Zugänge, Jury und die neue Standardkategorie aus #11 bis #13.
 
 ## Voraussetzungen
 
@@ -55,52 +55,57 @@ http://localhost:5173/#/access/admin/<ADMIN_ACCESS_TOKEN>
 ```
 
 Die App tauscht den Fragment-Link einmalig gegen ein signiertes HttpOnly-Cookie
-und entfernt das Token sofort aus der Adresszeile. Im Bereich `Captain-Links`
-kann der Admin anschließend für jedes Team den persönlichen Link teilen oder
-kopieren. Captain-Links dürfen nur privat an den jeweiligen Captain gehen.
+und entfernt das Token sofort aus der Adresszeile. Im Bereich `Zugänge` kann
+der Admin anschließend jeden Captain- und Jury-Link teilen, kopieren oder als
+QR-Code anzeigen. Der QR-Code wird lokal im Browser erzeugt; der Link wird
+nicht an einen externen Dienst gesendet. Persönliche Links dürfen nur privat an
+die jeweils angezeigte Person gehen.
 
 Ein ungültiger, veränderter oder nicht zur Rolle passender Zugang zeigt keine
-Challenge-Daten. Admin- und Captain-APIs sind serverseitig getrennt; die
-Captain-Identität stammt ausschließlich aus der signierten Session und nicht
-aus Formulardaten.
+Challenge-Daten. Admin- und Wähler-APIs sind serverseitig getrennt; Rolle und
+Identität stammen ausschließlich aus der signierten Session und nicht aus
+Formulardaten.
 
 ## Challenge einrichten und steuern
 
 Beim ersten Aufruf führt die Oberfläche in drei Schritten durch Challenge-Name,
-Teams mit Captains und Terminen sowie die fünf vorbelegten Kategorien. Die
-Konfiguration wird über `GET/PUT /api/admin/challenge` vollständig und atomar
-in D1 gespeichert.
+Teams mit Captains und Terminen, eine optionale Jury sowie die fünf vorbelegten
+Kategorien. Die fünfte Standardkategorie heißt `Gesamterlebnis` mit der Frage
+„Wie stimmig war der Abend insgesamt?“. Die Konfiguration wird über
+`GET/PUT /api/admin/challenge` vollständig und atomar in D1 gespeichert.
 
-Bis zum ersten geöffneten Kochabend können Challenge, Teams, Termine und
-Kategorien geändert werden. Danach bleiben ausschließlich die Termine noch
-bevorstehender Abende änderbar. Nach der Auflösung ist die Konfiguration nur
-noch lesbar.
+Bis zum ersten geöffneten Kochabend können Challenge, Teams, Jury, Termine und
+Kategorien geändert werden. Jury-Namen sind innerhalb der Jury unabhängig von
+Groß-/Kleinschreibung eindeutig. Danach bleiben ausschließlich die Termine
+noch bevorstehender Abende änderbar. Nach der Auflösung ist die Konfiguration
+nur noch lesbar.
 
 Unter `Abende` kann der Admin genau den chronologisch nächsten Abend öffnen.
 Es kann höchstens einen offenen Abend geben. Beim Schließen werden fehlende
-Captain-Stimmen namentlich angezeigt und müssen ausdrücklich bestätigt werden.
+Stimmen mit Name und Rolle angezeigt und müssen ausdrücklich bestätigt werden.
 Ein geschlossener Abend kann wieder geöffnet werden; vorhandene Bewertungen
 bleiben dabei erhalten. Punktwerte oder Zwischenergebnisse werden in der
 Admin-Ansicht nicht angezeigt.
 
-Captains sehen nur ihre eigene Identität, den Fortschritt und den aktuell
-geöffneten fremden Kochabend. Eine Bewertung besteht immer vollständig aus den
-fünf Kategorien mit jeweils 1 bis 5 Punkten. Sie kann solange überschrieben
-werden, wie der Abend offen ist. Das eigene Team kann nicht bewertet werden.
+Captains und Jury-Mitglieder sehen nur ihre eigene Identität, ihren Fortschritt
+und die Kochabende. Eine Bewertung besteht immer vollständig aus den fünf
+Kategorien mit jeweils 1 bis 5 Punkten. Sie kann solange überschrieben werden,
+wie der Abend offen ist. Captains können das eigene Team nicht bewerten;
+Jury-Mitglieder dürfen jeden Abend bewerten. Beide Rollen zählen gleich stark.
 
 ## Ergebnis auflösen
 
 Die Admin-Ansicht bietet `Ergebnis auflösen` erst an, wenn alle Kochabende
 geschlossen sind und jedes Team mindestens eine vollständige Fremdbewertung
 erhalten hat. Fehlen einzelne der erwarteten Stimmen, nennt eine letzte
-Bestätigung Captain und betroffenen Abend. Nach der Bestätigung ist die
+Bestätigung Person, Rolle und betroffenen Abend. Nach der Bestätigung ist die
 Auflösung dauerhaft und sämtliche Konfigurationen, Abendzustände und
 Bewertungen bleiben gesperrt.
 
-Admin und Captains sehen danach über ihre bestehenden Zugänge dieselben
+Admin, Captains und Jury sehen danach über ihre bestehenden Zugänge dieselben
 anonymisierten Ergebnisse. Zunächst werden die fünf Kategoriesieger gezeigt;
 `Gesamtsieger enthüllen` öffnet die vollständige Gesamtrangliste. Einzelstimmen
-und ihre Zuordnung zu Captains werden auch nach der Auflösung nie ausgegeben.
+und ihre Zuordnung zu Personen werden auch nach der Auflösung nie ausgegeben.
 Beim erneuten Laden beginnt die Darstellung wieder mit den Kategorien, ohne den
 gespeicherten Challenge-Zustand zu verändern.
 
@@ -116,8 +121,11 @@ Neue Migrationen werden als aufsteigend nummerierte SQL-Dateien in
 `migrations/` abgelegt. Bereits veröffentlichte Migrationen werden nicht
 nachträglich geändert.
 
-Die Issues #4 bis #7 verwenden das bereits mit `0001_initial.sql` angelegte
-Schema und benötigen keine neue Migration.
+`0002_voters_and_category.sql` führt das gemeinsame Wählermodell für Captains
+und Jury ein. Bestehende Captain-IDs, Links, Ballots und Ratings bleiben dabei
+erhalten. Nur eine noch exakt unveränderte Kategorie `Urlaubslegende` mit der
+alten Leitfrage wird in `Gesamterlebnis` umbenannt; individuelle Anpassungen
+bleiben unangetastet.
 
 Lokal anwenden:
 
@@ -162,8 +170,39 @@ notwendig. Vor dem ersten Deployment sind einmalig folgende Schritte nötig:
    `https://<worker>.workers.dev/#/access/admin/<ADMIN_ACCESS_TOKEN>`.
 
 Wenn die D1-Datenbank bereits angelegt und ihre ID in `wrangler.jsonc`
-eingetragen ist, wird sie nicht erneut erstellt. Issue #7 benötigt weder neue
-Secrets noch weitere Cloudflare-Ressourcen.
+eingetragen ist, wird sie nicht erneut erstellt. Für #11 bis #13 werden weder
+neue Secrets noch weitere Cloudflare-Ressourcen benötigt. Vor dem Deployment
+muss jedoch die neue D1-Migration mit `npm run db:migrate:remote` angewendet
+werden.
+
+## Manuelle Abnahme #11 bis #13
+
+1. In der Vorbereitung zwei Jury-Mitglieder anlegen, eines umbenennen und
+   eines entfernen. Ein Jury-Name, der sich nur durch Groß-/Kleinschreibung von
+   einem anderen unterscheidet, wird abgelehnt.
+2. Den ersten Abend öffnen. Jury sowie Teams und Kategorien sind danach
+   gesperrt; nur zulässige künftige Termine bleiben editierbar.
+3. Unter `Zugänge` für einen Captain und ein Jury-Mitglied jeweils `QR-Code`
+   öffnen. Name, Rolle beziehungsweise Team und Vertraulichkeitshinweis stimmen;
+   ein Smartphone öffnet beim Scan exakt den zugehörigen persönlichen Link.
+4. QR-Dialog mit Schließen-Schaltfläche, Klick auf die Fläche außerhalb und
+   Escape schließen. Danach liegt der Tastaturfokus wieder auf dem zuvor
+   verwendeten QR-Auslöser. Die Ansicht bleibt bei 320 px Breite bedienbar.
+5. Jury-Link öffnen: Die Rolle `Jury` ist sichtbar, alle Kochabende zählen zum
+   Fortschritt und jeder offene Abend kann bewertet und bis zum Schließen
+   geändert werden. Admin-Funktionen bleiben unsichtbar und serverseitig
+   gesperrt.
+6. Admin-Status prüfen: Für jeden Abend werden Captains und Jury getrennt mit
+   `abgegeben` oder `offen` angezeigt; die erwartete Stimmenzahl ist
+   `Anzahl Teams - 1 + Anzahl Jury`.
+7. Challenge auflösen: Captain- und Jury-Bewertungen fließen gleichgewichtet
+   ein, fehlende Bewertungen werden nicht als Null gewertet, und Jury sowie
+   Captains sehen identische anonymisierte Ergebnisse.
+8. Bestehende produktive Challenge vor und nach Migration stichprobenartig
+   vergleichen: Captain-Links funktionieren weiter, frühere Bewertungen sind
+   vorhanden, IDs und Reihenfolge der fünften Kategorie bleiben erhalten.
+   Eine unveränderte alte Standardkategorie heißt danach `Gesamterlebnis`;
+   eine individuell bearbeitete Variante bleibt unverändert.
 
 ## Manuelle Abnahme #4 bis #6
 

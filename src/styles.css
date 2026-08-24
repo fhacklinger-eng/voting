@@ -214,7 +214,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   outline-offset: 3px;
 }
 
-.team-stack, .category-editor { display: grid; gap: 16px; }
+.team-stack, .jury-stack, .category-editor { display: grid; gap: 16px; }
 
 .team-block, .category-block {
   min-width: 0;
@@ -232,6 +232,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   font-size: 1.25rem;
   font-weight: 700;
 }
+.jury-editor { margin-top: 30px; padding-top: 26px; border-top: 1px solid var(--border); }
+.jury-editor h2 { margin: 5px 0 6px; font-family: Georgia, serif; font-size: 1.55rem; }
+.jury-editor > p { margin: 0 0 16px; color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
+.jury-block { margin: 0; padding: 15px; border: 1px solid #cbd2b9; border-radius: 15px; background: #f5f5eb; }
+.jury-block legend { padding: 4px 9px; border-radius: 999px; background: var(--olive); color: white; font-size: 0.68rem; font-weight: 850; }
+.jury-block .text-button { margin-top: 4px; }
 
 .category-block { position: relative; padding-top: 24px; }
 .category-block legend {
@@ -324,6 +330,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 
 .summary-section { padding: 22px 20px; border-top: 1px solid #e8dfd1; }
 .summary-section h2 { margin: 5px 0 18px; font-family: Georgia, serif; font-size: 1.55rem; }
+.jury-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.jury-summary li { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 999px; background: #eef0e5; color: var(--olive); }
+.jury-summary strong { color: var(--ink); font-size: 0.78rem; }
 
 .dinner-list, .category-summary { margin: 0; padding: 0; list-style: none; }
 .dinner-list { counter-reset: dinners; display: grid; gap: 12px; }
@@ -467,10 +476,24 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .captain-links { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .captain-links li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); }
 .captain-links__number { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #f4e4cf; color: var(--primary-strong); font-size: 0.72rem; font-weight: 900; }
+.captain-links__number--jury { background: #e8ecdf; color: var(--olive); }
 .captain-links__identity { display: grid; min-width: 0; }
 .captain-links__identity strong, .captain-links__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .captain-links__identity small { color: var(--muted); font-size: 0.75rem; }
-.captain-links .button--secondary { margin-top: 0; }
+.captain-links__actions { display: flex; gap: 7px; }
+.captain-links .button { margin-top: 0; }
+.qr-dialog { width: min(92vw, 390px); max-height: min(92vh, 680px); padding: 0; overflow: auto; border: 0; border-radius: 24px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 70px rgb(20 28 24 / 34%); }
+.qr-dialog::backdrop { background: rgb(38 50 44 / 62%); backdrop-filter: blur(3px); }
+.qr-dialog__content { position: relative; padding: 28px 22px 24px; text-align: center; }
+.qr-dialog__close { position: absolute; top: 10px; right: 10px; font-size: 1.4rem; }
+.qr-dialog h2 { margin: 6px 0 2px; overflow-wrap: anywhere; font-family: Georgia, serif; font-size: 2rem; line-height: 1; }
+.qr-dialog__role { margin: 0; color: var(--muted); font-size: 0.82rem; }
+.qr-dialog__code { display: grid; width: min(100%, 278px); margin: 20px auto 16px; padding: 10px; place-items: center; border: 1px solid var(--border); border-radius: 18px; background: #fffdf8; }
+.qr-dialog__code svg { display: block; width: 100%; height: auto; }
+.qr-dialog__content > p:not(.qr-dialog__role) { margin: 0 auto; max-width: 19rem; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+.qr-dialog__content > small { display: block; margin-top: 14px; color: var(--primary-strong); font-size: 0.68rem; line-height: 1.45; }
+.qr-dialog__error { margin: 20px 0 14px; padding: 16px; border-radius: 14px; background: #f9e7e1; }
+.qr-dialog__error p { margin: 0 0 12px; color: var(--primary-strong); font-size: 0.8rem; line-height: 1.45; }
 .loading--inline { margin: 60px auto; text-align: center; }
 
 .captain-heading { margin-bottom: 20px; }
@@ -657,6 +680,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   .team-block { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
   .team-block legend, .team-block .text-button { grid-column: 1 / -1; }
   .team-block .field:last-of-type { grid-column: 1 / -1; }
+  .jury-block { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; }
+  .jury-block legend { grid-column: 1 / -1; }
   .dinner-list { grid-template-columns: 1fr 1fr; }
   .setup-card > .button { width: calc(100% - 72px); margin-right: 36px; margin-left: 36px; }
   .summary-actions { grid-template-columns: 1fr 1fr; padding-right: 36px; padding-left: 36px; }
@@ -680,7 +705,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   .dinner-card__header { display: grid; }
   .dinner-status { justify-self: start; }
   .captain-links li { grid-template-columns: 32px minmax(0, 1fr); }
-  .captain-links .button { grid-column: 2; width: 100%; }
+  .captain-links__actions { grid-column: 2; display: grid; grid-template-columns: 1fr; }
+  .captain-links .button { width: 100%; }
+  .qr-dialog { width: calc(100vw - 20px); }
+  .qr-dialog__content { padding-right: 16px; padding-left: 16px; }
   .ballot-actions { grid-template-columns: 1fr; }
   .ballot-actions > div { display: none; }
 }

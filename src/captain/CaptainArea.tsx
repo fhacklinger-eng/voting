@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiRequest } from "../api";
 import { Brand, dateLabel } from "../Brand";
-import type { CaptainSession } from "../Root";
+import type { VoterSession } from "../Root";
 import { ResultsView } from "../results/ResultsView";
 import { CaptainBallot } from "./CaptainBallot";
 
@@ -21,7 +21,7 @@ interface CaptainDinner {
 }
 
 interface CaptainDashboard {
-  identity: CaptainSession;
+  identity: VoterSession;
   progress: { completed: number; total: number };
   dinners: CaptainDinner[];
 }
@@ -38,7 +38,7 @@ export function CaptainArea({
   initialIdentity,
   onLogout,
 }: {
-  initialIdentity: CaptainSession;
+  initialIdentity: VoterSession;
   onLogout: () => Promise<void>;
 }) {
   const [dashboard, setDashboard] = useState<CaptainDashboard | null>(null);
@@ -51,7 +51,7 @@ export function CaptainArea({
     setLoading(true);
     setError("");
     try {
-      const payload = await apiRequest<{ dashboard: CaptainDashboard }>("/api/captain/dashboard");
+      const payload = await apiRequest<{ dashboard: CaptainDashboard }>("/api/voter/dashboard");
       setDashboard(payload.dashboard);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Die Übersicht konnte nicht geladen werden.");
@@ -92,19 +92,19 @@ export function CaptainArea({
       <header className="app-header">
         <Brand compact />
         <div className="app-header__actions">
-          <span className="identity-pill"><strong>{identity.captainName}</strong><small>{identity.teamName}</small></span>
+          <span className="identity-pill"><strong>{identity.displayName}</strong><small>{identity.role === "jury" ? "Jury" : identity.teamName}</small></span>
           <button className="icon-button" type="button" onClick={() => void onLogout()} aria-label="Abmelden" title="Abmelden">↗</button>
         </div>
       </header>
 
       {dashboard?.identity.challengeStatus === "revealed" ? (
-        <ResultsView endpoint="/api/captain/results" />
+        <ResultsView endpoint="/api/voter/results" />
       ) : (
         <div className="page-content">
           <header className="captain-heading">
             <div className="eyebrow">{identity.challengeName}</div>
-            <h1>Ciao, {identity.captainName}!</h1>
-            <p>Deine Stimme zählt für <strong>{identity.teamName}</strong>.</p>
+            <h1>Ciao, {identity.displayName}!</h1>
+            <p>{identity.role === "jury" ? <>Du stimmst als <strong>Jury</strong> ab.</> : <>Deine Stimme zählt für <strong>{identity.teamName}</strong>.</>}</p>
           </header>
 
           {notice && <div className="banner banner--success" role="status">✓ {notice}</div>}

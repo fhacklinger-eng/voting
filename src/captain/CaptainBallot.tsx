@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiRequestError, apiRequest, jsonRequest } from "../api";
 import { Brand, dateLabel } from "../Brand";
-import type { CaptainSession } from "../Root";
+import type { VoterSession } from "../Root";
 
 interface Ballot {
   dinner: { id: string; teamName: string; date: string };
@@ -29,7 +29,7 @@ export function CaptainBallot({
   onSaved,
 }: {
   dinnerId: string;
-  identity: CaptainSession;
+  identity: VoterSession;
   onBack: () => void;
   onSaved: () => void;
 }) {
@@ -44,7 +44,7 @@ export function CaptainBallot({
   useEffect(() => {
     const controller = new AbortController();
     apiRequest<{ ballot: Ballot }>(
-      `/api/captain/dinners/${encodeURIComponent(dinnerId)}/ballot`,
+      `/api/voter/dinners/${encodeURIComponent(dinnerId)}/ballot`,
       { signal: controller.signal },
     )
       .then((payload) => {
@@ -82,7 +82,7 @@ export function CaptainBallot({
     setError("");
     try {
       await apiRequest(
-        `/api/captain/dinners/${encodeURIComponent(dinnerId)}/ballot`,
+        `/api/voter/dinners/${encodeURIComponent(dinnerId)}/ballot`,
         jsonRequest("PUT", {
           ratings: ballot.categories.map((category) => ({
             categoryId: category.id,
@@ -108,7 +108,7 @@ export function CaptainBallot({
       <header className="ballot-topbar">
         <button className="back-link" type="button" onClick={onBack}>← Übersicht</button>
         <Brand compact />
-        <span className="identity-dot" title={`${identity.captainName} · ${identity.teamName}`}>{identity.captainName.slice(0, 1).toLocaleUpperCase("de-DE")}</span>
+        <span className="identity-dot" title={`${identity.displayName} · ${identity.role === "jury" ? "Jury" : identity.teamName}`}>{identity.displayName.slice(0, 1).toLocaleUpperCase("de-DE")}</span>
       </header>
 
       {loading && <div className="loading" role="status">Die Stimmzettel werden verteilt …</div>}
@@ -178,4 +178,3 @@ export function CaptainBallot({
     </main>
   );
 }
-

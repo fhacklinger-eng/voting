@@ -6,7 +6,7 @@ export interface BallotRating {
 export interface CompleteBallot {
   challengeId: string;
   dinnerId: string;
-  captainTeamId: string;
+  voterId: string;
   ratings: BallotRating[];
 }
 
@@ -14,7 +14,7 @@ export class BallotValidationError extends Error {}
 export class BallotWriteConflictError extends Error {}
 
 function ballotId(input: CompleteBallot): string {
-  return `ballot:${input.dinnerId}:${input.captainTeamId}`;
+  return `ballot:${input.dinnerId}:${input.voterId}`;
 }
 
 function validateShape(input: CompleteBallot): void {
@@ -41,11 +41,13 @@ const writableContext = `
     SELECT 1
     FROM dinners AS dinner
     JOIN challenges AS challenge ON challenge.id = dinner.challenge_id
+    JOIN voters AS voter ON voter.challenge_id = dinner.challenge_id
     WHERE dinner.id = ?
       AND dinner.challenge_id = ?
       AND dinner.status = 'open'
       AND challenge.status <> 'revealed'
-      AND dinner.team_id <> ?
+      AND voter.id = ?
+      AND (voter.role = 'jury' OR voter.team_id <> dinner.team_id)
   )
 `;
 
@@ -62,24 +64,29 @@ export async function persistCompleteBallot(
 
   const id = ballotId(input);
   const now = new Date().toISOString();
-  const contextBindings = [input.dinnerId, input.challengeId, input.captainTeamId];
+  const contextBindings = [input.dinnerId, input.challengeId, input.voterId];
 
   const statements: D1PreparedStatement[] = [
     db
       .prepare(
         `INSERT INTO ballots (
-          id, challenge_id, dinner_id, captain_team_id, created_at, updated_at
+          id, challenge_id, dinner_id, captain_team_id, voter_id, created_at, updated_at
         )
-        SELECT ?, ?, ?, ?, ?, ?
+        SELECT ?, ?, ?,
+               (SELECT team_id FROM voters WHERE id = ? AND challenge_id = ?),
+               ?, ?, ?
         WHERE ${writableContext}
-        ON CONFLICT(dinner_id, captain_team_id)
-        DO UPDATE SET updated_at = excluded.updated_at`,
+        ON CONFLICT DO UPDATE SET
+          voter_id = excluded.voter_id,
+          updated_at = excluded.updated_at`,
       )
       .bind(
         id,
         input.challengeId,
         input.dinnerId,
-        input.captainTeamId,
+        input.voterId,
+        input.challengeId,
+        input.voterId,
         now,
         now,
         ...contextBindings,
@@ -120,22 +127,27 @@ export async function saveCompleteBallot(
     .prepare(
       `SELECT dinner.team_id AS dinner_team_id,
               dinner.status AS dinner_status,
-              challenge.status AS challenge_status
+              challenge.status AS challenge_status,
+              voter.role AS voter_role,
+              voter.team_id AS voter_team_id
        FROM dinners AS dinner
        JOIN challenges AS challenge ON challenge.id = dinner.challenge_id
-       WHERE dinner.id = ? AND dinner.challenge_id = ?`,
+       JOIN voters AS voter ON voter.challenge_id = dinner.challenge_id
+       WHERE dinner.id = ? AND dinner.challenge_id = ? AND voter.id = ?`,
     )
-    .bind(input.dinnerId, input.challengeId)
+    .bind(input.dinnerId, input.challengeId, input.voterId)
     .first<{
       dinner_team_id: string;
       dinner_status: string;
       challenge_status: string;
+      voter_role: "captain" | "jury";
+      voter_team_id: string | null;
     }>();
 
   if (!context || context.dinner_status !== "open" || context.challenge_status === "revealed") {
     throw new BallotWriteConflictError("Der Kochabend ist nicht zur Bewertung geöffnet.");
   }
-  if (context.dinner_team_id === input.captainTeamId) {
+  if (context.voter_role === "captain" && context.dinner_team_id === context.voter_team_id) {
     throw new BallotValidationError("Das eigene Team darf nicht bewertet werden.");
   }
 

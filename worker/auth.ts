@@ -1,18 +1,40 @@
+import type { VoterRole } from "./domain/challenge-setup";
+
 const SESSION_COOKIE = "voting_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const CAPTAIN_TOKEN_VERSION = "v1";
+const JURY_TOKEN_VERSION = "jury-v1";
 
 export type Session =
   | { role: "admin"; expiresAt: number }
-  | { role: "captain"; challengeId: string; teamId: string; expiresAt: number };
+  | {
+      role: "voter";
+      voterRole: VoterRole;
+      challengeId: string;
+      voterId: string;
+      teamId?: string;
+      expiresAt: number;
+    };
 
-interface StoredSession {
+interface StoredSessionV1 {
   version: 1;
   role: "admin" | "captain";
   expiresAt: number;
   challengeId?: string;
   teamId?: string;
 }
+
+interface StoredSessionV2 {
+  version: 2;
+  role: "admin" | "voter";
+  expiresAt: number;
+  challengeId?: string;
+  voterId?: string;
+  voterRole?: VoterRole;
+  teamId?: string;
+}
+
+type StoredSession = StoredSessionV1 | StoredSessionV2;
 
 export class AuthenticationError extends Error {
   constructor(
@@ -89,45 +111,67 @@ async function signedValue(secret: string, value: string): Promise<string> {
   return bytesToBase64Url(await hmac(secret, value));
 }
 
-function captainMessage(challengeId: string, teamId: string): string {
-  return `${CAPTAIN_TOKEN_VERSION}:${challengeId}:${teamId}`;
+function voterMessage(role: VoterRole, challengeId: string, voterId: string): string {
+  const version = role === "captain" ? CAPTAIN_TOKEN_VERSION : JURY_TOKEN_VERSION;
+  return `${version}:${challengeId}:${voterId}`;
 }
 
-export async function createCaptainAccessToken(
+export async function createVoterAccessToken(
+  signingSecret: string | undefined,
+  role: VoterRole,
+  challengeId: string,
+  voterId: string,
+): Promise<string> {
+  const secret = configuredSecret(signingSecret, "AUTH_SIGNING_SECRET");
+  const signature = await signedValue(secret, voterMessage(role, challengeId, voterId));
+  return `${voterId}.${signature}`;
+}
+
+/** Keeps every existing captain link byte-for-byte compatible. */
+export function createCaptainAccessToken(
   signingSecret: string | undefined,
   challengeId: string,
   teamId: string,
 ): Promise<string> {
-  const secret = configuredSecret(signingSecret, "AUTH_SIGNING_SECRET");
-  const signature = await signedValue(secret, captainMessage(challengeId, teamId));
-  return `${teamId}.${signature}`;
+  return createVoterAccessToken(signingSecret, "captain", challengeId, teamId);
 }
 
-async function verifyCaptainAccessToken(
+async function verifyVoterAccessToken(
   db: D1Database,
   signingSecret: string | undefined,
+  role: VoterRole,
   token: string,
-): Promise<{ challengeId: string; teamId: string } | null> {
+): Promise<{ challengeId: string; voterId: string; voterRole: VoterRole; teamId?: string } | null> {
   const separator = token.indexOf(".");
   if (separator <= 0) return null;
 
-  const teamId = token.slice(0, separator);
+  const voterId = token.slice(0, separator);
   const providedSignature = token.slice(separator + 1);
-  const team = await db
-    .prepare("SELECT challenge_id FROM teams WHERE id = ?")
-    .bind(teamId)
-    .first<{ challenge_id: string }>();
-  if (!team) return null;
+  const voter = await db
+    .prepare(
+      `SELECT challenge_id, role, team_id
+       FROM voters
+       WHERE id = ? AND role = ?`,
+    )
+    .bind(voterId, role)
+    .first<{ challenge_id: string; role: VoterRole; team_id: string | null }>();
+  if (!voter) return null;
 
-  const expected = await createCaptainAccessToken(
+  const expected = await createVoterAccessToken(
     signingSecret,
-    team.challenge_id,
-    teamId,
+    role,
+    voter.challenge_id,
+    voterId,
   );
   const expectedSignature = expected.slice(expected.indexOf(".") + 1);
   if (!(await equalSecrets(providedSignature, expectedSignature))) return null;
 
-  return { challengeId: team.challenge_id, teamId };
+  return {
+    challengeId: voter.challenge_id,
+    voterId,
+    voterRole: voter.role,
+    ...(voter.team_id ? { teamId: voter.team_id } : {}),
+  };
 }
 
 export async function exchangeAccess(
@@ -152,18 +196,18 @@ export async function exchangeAccess(
     return { role: "admin", expiresAt };
   }
 
-  if (kind === "captain") {
+  if (kind === "captain" || kind === "jury") {
     const identity = token
-      ? await verifyCaptainAccessToken(db, env.AUTH_SIGNING_SECRET, token)
+      ? await verifyVoterAccessToken(db, env.AUTH_SIGNING_SECRET, kind, token)
       : null;
     if (!identity) {
       throw new AuthenticationError(
         "INVALID_ACCESS",
         401,
-        "Dieser Einladungslink ist nicht gültig. Bitte frag euren Organisator nach dem aktuellen Link.",
+        "Dieser Einladungslink ist nicht gültig. Bitte frag die Organisation nach dem aktuellen Link.",
       );
     }
-    return { role: "captain", ...identity, expiresAt };
+    return { role: "voter", ...identity, expiresAt };
   }
 
   throw new AuthenticationError(
@@ -173,14 +217,16 @@ export async function exchangeAccess(
   );
 }
 
-function storedSession(session: Session): StoredSession {
+function storedSession(session: Session): StoredSessionV2 {
   return session.role === "admin"
-    ? { version: 1, role: "admin", expiresAt: session.expiresAt }
+    ? { version: 2, role: "admin", expiresAt: session.expiresAt }
     : {
-        version: 1,
-        role: "captain",
+        version: 2,
+        role: "voter",
+        voterRole: session.voterRole,
         challengeId: session.challengeId,
-        teamId: session.teamId,
+        voterId: session.voterId,
+        ...(session.teamId ? { teamId: session.teamId } : {}),
         expiresAt: session.expiresAt,
       };
 }
@@ -194,24 +240,46 @@ async function serializeSession(
   return `${payload}.${await signedValue(secret, payload)}`;
 }
 
+function validExpiry(value: StoredSession): boolean {
+  return Number.isInteger(value.expiresAt) && value.expiresAt > Math.floor(Date.now() / 1000);
+}
+
 function sessionFromStored(value: StoredSession): Session | null {
-  if (
-    value.version !== 1 ||
-    !Number.isInteger(value.expiresAt) ||
-    value.expiresAt <= Math.floor(Date.now() / 1000)
-  ) {
+  if (!value || !validExpiry(value)) return null;
+
+  if (value.version === 1) {
+    if (value.role === "admin") return { role: "admin", expiresAt: value.expiresAt };
+    if (
+      value.role === "captain" &&
+      typeof value.challengeId === "string" &&
+      typeof value.teamId === "string"
+    ) {
+      return {
+        role: "voter",
+        voterRole: "captain",
+        challengeId: value.challengeId,
+        voterId: value.teamId,
+        teamId: value.teamId,
+        expiresAt: value.expiresAt,
+      };
+    }
     return null;
   }
+
   if (value.role === "admin") return { role: "admin", expiresAt: value.expiresAt };
   if (
-    value.role === "captain" &&
+    value.role === "voter" &&
+    (value.voterRole === "captain" || value.voterRole === "jury") &&
     typeof value.challengeId === "string" &&
-    typeof value.teamId === "string"
+    typeof value.voterId === "string" &&
+    (value.voterRole === "jury" || typeof value.teamId === "string")
   ) {
     return {
-      role: "captain",
+      role: "voter",
+      voterRole: value.voterRole,
       challengeId: value.challengeId,
-      teamId: value.teamId,
+      voterId: value.voterId,
+      ...(value.teamId ? { teamId: value.teamId } : {}),
       expiresAt: value.expiresAt,
     };
   }
@@ -286,4 +354,11 @@ export async function requireRole<R extends Session["role"]>(
     throw new AuthenticationError("FORBIDDEN", 403, "Diese Aktion ist nicht erlaubt.");
   }
   return session as Extract<Session, { role: R }>;
+}
+
+export function requireVoter(
+  request: Request,
+  signingSecret: string | undefined,
+): Promise<Extract<Session, { role: "voter" }>> {
+  return requireRole(request, signingSecret, "voter");
 }

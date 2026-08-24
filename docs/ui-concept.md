@@ -1,14 +1,14 @@
 # UI-Konzept – Mediterranean Table
 
 Status: umsetzbare Designrichtung für das MVP  
-Bezug: Issues #1 bis #8  
+Bezug: Issues #1 bis #13
 Primärer Kontext: Smartphone im Urlaub; Verwaltung und Siegerehrung zusätzlich auf größeren Bildschirmen
 
 ## 1. Empfehlung
 
 Die Anwendung wird **mobile-first und responsiv**, nicht mobile-only.
 
-- Captains stimmen fast ausschließlich auf dem Smartphone ab. Dieser Ablauf bestimmt Struktur, Komponenten und Prioritäten.
+- Captains und Jury-Mitglieder stimmen fast ausschließlich auf dem Smartphone ab. Dieser Ablauf bestimmt Struktur, Komponenten und Prioritäten.
 - Der Organisator kann die Challenge ebenfalls mobil steuern, profitiert bei der einmaligen Einrichtung aber von Tablet oder Desktop.
 - Die Siegerehrung soll auf einem Smartphone funktionieren und auf einem Laptop, Fernseher oder Beamer bewusst großzügiger inszeniert werden.
 
@@ -31,13 +31,20 @@ Kernablauf:
 
 Erfolg: fünf Entscheidungen plus einmal Speichern, keine Texteingabe, keine Navigation durch Menüs, keine sichtbaren Zwischenstände.
 
+### Jury
+
+Kontext und Stimmzettel entsprechen dem Captain-Ablauf. Die Jury gehört jedoch
+zu keinem Team und darf jeden Kochabend bewerten. Name und Rolle müssen deshalb
+auf Startseite und Stimmzettel klar erkennbar sein; der Fortschritt umfasst alle
+Abende.
+
 ### Organisator
 
 Kontext: einmalige Vorbereitung und danach jeweils eine kurze Steuerungsaktion pro Kochabend.
 
 Kernablauf:
 
-1. Challenge vorbereiten und Captain-Links teilen.
+1. Challenge vorbereiten und persönliche Captain- und Jury-Zugänge teilen.
 2. Aktuellen Abend öffnen.
 3. Abgabestatus prüfen und Abend schließen.
 4. Nach dem letzten Abend das Ergebnis auflösen.
@@ -113,7 +120,7 @@ Zur Bewertung führt genau eine Hauptaktion. Zurück führt zur Startseite; Brow
 Die Verwaltungsstartseite zeigt zuerst den laufenden Zustand. Drei sekundäre Bereiche bleiben erreichbar, aber visuell zurückgenommen:
 
 - Challenge bearbeiten
-- Captain-Links teilen
+- persönliche Zugänge teilen
 - abgeschlossene und kommende Abende
 
 Auf Mobilgeräten öffnen diese Bereiche eigene Seiten beziehungsweise fokussierte Panels. Auf Desktop können Einrichtung und Links in einer rechten Spalte oder einem seitlichen Panel erscheinen. Eine globale Seitenleiste oder ein Dashboard-Menü ist nicht notwendig.
@@ -180,15 +187,18 @@ Regeln:
 - Die fünf Kategorien sind vorbelegt und zunächst eingeklappt; „Kategorien anpassen“ öffnet sie. So wird Konfiguration nicht zur Pflichtaufgabe.
 - Auf Desktop erscheinen Challenge/Teams links und Kategorien/Zusammenfassung rechts; Reihenfolge und Benennung bleiben identisch.
 
-Nach erfolgreichem Speichern landet der Organisator nicht in einem generischen Dashboard, sondern bei „Captain-Links teilen“ als nächstem notwendigen Schritt.
+Nach erfolgreichem Speichern landet der Organisator nicht in einem generischen Dashboard, sondern bei „Persönliche Zugänge teilen“ als nächstem notwendigen Schritt.
 
-### 6.4 Captain-Links
+### 6.4 Persönliche Zugänge
 
-- Pro Team eine kompakte Zeile mit Teamname, Captain und primärer Aktion „Teilen“.
+- Pro Captain und Jury-Mitglied eine kompakte Zeile mit Name, Rolle beziehungsweise Team und primärer Aktion „Teilen“.
 - Wenn Web Share verfügbar ist, öffnet „Teilen“ den nativen Share-Dialog; andernfalls wird der Link kopiert.
 - Nach Kopieren: inline „Link kopiert“ statt flüchtiger Meldung ohne Kontext.
+- Die sekundäre Aktion „QR-Code“ öffnet genau einen Dialog mit großem, lokal im Browser erzeugtem QR-Code.
+- Der Dialog nennt Name und Rolle beziehungsweise Team, warnt vor der Weitergabe und schließt per Schaltfläche, Klick außerhalb oder Escape. Danach kehrt der Tastaturfokus zum Auslöser zurück.
+- Falls die QR-Darstellung scheitert, bleibt „Link kopieren“ als direkte Alternative verfügbar.
 - Der geheime Token wird nicht vollständig als Text dargestellt.
-- Ein kurzer Hinweis erklärt: „Jeder Link gehört genau zu einem Captain.“
+- Ein kurzer Hinweis erklärt: „Jeder Link gehört genau zu einer Person.“
 
 ### 6.5 Organisator-Startseite
 
@@ -207,7 +217,7 @@ Bei fehlenden Stimmen öffnet sich ein kompaktes Bestätigungs-Panel:
 
 Aktionen: „Weiter offen lassen“ und „Trotzdem schließen“.
 
-Unterhalb folgen kommende und abgeschlossene Abende als ruhige Liste. „Challenge bearbeiten“ und „Captain-Links“ sind sekundäre Text-/Outline-Aktionen im Kopfbereich.
+Unterhalb folgen kommende und abgeschlossene Abende als ruhige Liste. „Challenge bearbeiten“ und „Zugänge“ sind sekundäre Text-/Outline-Aktionen im Kopfbereich.
 
 ### 6.6 Ergebnis und Siegerehrung
 

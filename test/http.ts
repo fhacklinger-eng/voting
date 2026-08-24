@@ -16,7 +16,7 @@ export function apiRequest(
   return new Request(`${TEST_ORIGIN}${path}`, { ...init, headers });
 }
 
-export async function exchangeSession(kind: "admin" | "captain", token: string): Promise<string> {
+export async function exchangeSession(kind: "admin" | "captain" | "jury", token: string): Promise<string> {
   const response = await worker.fetch(
     apiRequest("/api/session/exchange", null, {
       method: "POST",

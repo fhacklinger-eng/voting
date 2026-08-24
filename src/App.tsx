@@ -5,7 +5,7 @@ const DEFAULT_CATEGORIES = [
   { name: "Das Auge isst mit", question: "Wie appetitlich sah das Essen aus?" },
   { name: "Küchen-Coup", question: "Wie kreativ und stimmig war das Menü?" },
   { name: "Punktlandung", question: "Haben Garpunkt, Temperatur und Timing gepasst?" },
-  { name: "Urlaubslegende", question: "Wie besonders war der gesamte Abend?" },
+  { name: "Gesamterlebnis", question: "Wie stimmig war der Abend insgesamt?" },
 ];
 
 type ChallengeStatus = "preparation" | "running" | "revealed";
@@ -21,6 +21,7 @@ interface ChallengeDto {
     captainName: string;
     dinner: { id: string; date: string; status: DinnerStatus };
   }>;
+  juryMembers: Array<{ id: string; name: string }>;
   categories: Array<{
     id: string;
     position: number;
@@ -38,6 +39,7 @@ interface SetupForm {
     dinnerDate: string;
     dinnerStatus: DinnerStatus;
   }>;
+  juryMembers: Array<{ id?: string; name: string }>;
   categories: Array<{ id?: string; name: string; question: string }>;
 }
 
@@ -55,6 +57,7 @@ const emptyTeam = () => ({
 const emptyForm = (): SetupForm => ({
   name: "",
   teams: [emptyTeam(), emptyTeam(), emptyTeam()],
+  juryMembers: [],
   categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
 });
 
@@ -68,6 +71,7 @@ function formFromChallenge(challenge: ChallengeDto): SetupForm {
       dinnerDate: team.dinner.date,
       dinnerStatus: team.dinner.status,
     })),
+    juryMembers: challenge.juryMembers.map((member) => ({ ...member })),
     categories: challenge.categories.map((category) => ({
       id: category.id,
       name: category.name,
@@ -121,6 +125,19 @@ function clientErrors(form: SetupForm, step?: number): Record<string, string> {
         errors[`teams.${duplicateDate}.dinnerDate`] = "Jeder Abend braucht ein eigenes Datum.";
         errors[`teams.${index}.dinnerDate`] = "Jeder Abend braucht ein eigenes Datum.";
       } else if (team.dinnerDate) dates.set(team.dinnerDate, index);
+    });
+
+    const juryNames = new Map<string, number>();
+    form.juryMembers.forEach((member, index) => {
+      if (!member.name.trim()) {
+        errors[`juryMembers.${index}.name`] = "Bitte gib einen Namen für das Jury-Mitglied ein.";
+      }
+      const name = normalize(member.name);
+      const duplicate = juryNames.get(name);
+      if (name && duplicate !== undefined) {
+        errors[`juryMembers.${duplicate}.name`] = "Jury-Namen müssen eindeutig sein.";
+        errors[`juryMembers.${index}.name`] = "Jury-Namen müssen eindeutig sein.";
+      } else if (name) juryNames.set(name, index);
     });
   }
 
@@ -226,6 +243,16 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
     clearError(`categories.${index}.${key}`);
   }
 
+  function updateJuryMember(index: number, value: string) {
+    setForm((current) => ({
+      ...current,
+      juryMembers: current.juryMembers.map((member, memberIndex) =>
+        memberIndex === index ? { ...member, name: value } : member,
+      ),
+    }));
+    clearError(`juryMembers.${index}.name`);
+  }
+
   function moveTo(nextStep: number): void {
     const errors = clientErrors(form, step);
     if (nextStep > step && Object.keys(errors).length > 0) {
@@ -244,7 +271,7 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
       setFieldErrors(errors);
       const first = Object.keys(errors)[0];
       if (first === "name") setStep(1);
-      else if (first.startsWith("teams")) setStep(2);
+      else if (first.startsWith("teams") || first.startsWith("juryMembers")) setStep(2);
       else {
         setStep(3);
         setCategoriesOpen(true);
@@ -263,6 +290,7 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
         body: JSON.stringify({
           name: form.name,
           teams: form.teams.map(({ dinnerStatus: _dinnerStatus, ...team }) => team),
+          juryMembers: form.juryMembers,
           categories: form.categories,
         }),
       });
@@ -272,7 +300,7 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
           setFieldErrors(payload.error.fieldErrors);
           const first = Object.keys(payload.error.fieldErrors)[0];
           if (first === "name") setStep(1);
-          else if (first?.startsWith("teams")) setStep(2);
+          else if (first?.startsWith("teams") || first?.startsWith("juryMembers")) setStep(2);
           else {
             setStep(3);
             setCategoriesOpen(true);
@@ -287,7 +315,7 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
       setFieldErrors({});
       setNotice(
         payload.challenge.status === "preparation"
-          ? "Alles ist gespeichert. Als Nächstes kannst du die Captain-Links teilen."
+          ? "Alles ist gespeichert. Als Nächstes kannst du die persönlichen Zugänge teilen."
           : "Die geänderten Termine sind gespeichert.",
       );
       setShowSummary(true);
@@ -331,6 +359,18 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
               ))}
             </ol>
           </section>
+
+          {form.juryMembers.length > 0 && (
+            <section className="summary-section" aria-labelledby="jury-title">
+              <div className="step-kicker">Zusätzliche Stimmen</div>
+              <h2 id="jury-title">{form.juryMembers.length} in der Jury</h2>
+              <ul className="jury-summary">
+                {form.juryMembers.map((member) => (
+                  <li key={member.id ?? member.name}><span aria-hidden="true">★</span><strong>{member.name}</strong></li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="summary-section" aria-labelledby="categories-title">
             <div className="step-kicker">Bewertung</div><h2 id="categories-title">Fünf Kategorien</h2>
@@ -429,6 +469,39 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
             {!setupLocked && <button className="button button--secondary" type="button" onClick={() =>
               setForm((current) => ({ ...current, teams: [...current.teams, emptyTeam()] }))
             }>+ Team hinzufügen</button>}
+
+            <section className="jury-editor" aria-labelledby="jury-editor-title">
+              <div className="step-kicker">Optional</div>
+              <h2 id="jury-editor-title">Zusätzliche Jury</h2>
+              <p>Gäste in der Jury kochen nicht selbst und dürfen jeden Abend bewerten.</p>
+              <div className="jury-stack">
+                {form.juryMembers.map((member, index) => (
+                  <fieldset className="jury-block" key={member.id ?? index}>
+                    <legend>Jury {index + 1}</legend>
+                    <label className="field" htmlFor={`field-juryMembers-${index}-name`}><span>Name</span>
+                      <input
+                        id={`field-juryMembers-${index}-name`}
+                        value={member.name}
+                        onChange={(event) => updateJuryMember(index, event.target.value)}
+                        placeholder="Vorname oder Anzeigename"
+                        disabled={setupLocked}
+                        aria-invalid={Boolean(fieldErrors[`juryMembers.${index}.name`])}
+                      />
+                      {fieldErrors[`juryMembers.${index}.name`] && <small className="field-error">{fieldErrors[`juryMembers.${index}.name`]}</small>}
+                    </label>
+                    {!setupLocked && (
+                      <button type="button" className="text-button text-button--danger" onClick={() => setForm((current) => ({
+                        ...current,
+                        juryMembers: current.juryMembers.filter((_, memberIndex) => memberIndex !== index),
+                      }))}>Jury-Mitglied entfernen</button>
+                    )}
+                  </fieldset>
+                ))}
+              </div>
+              {!setupLocked && <button className="button button--secondary" type="button" onClick={() =>
+                setForm((current) => ({ ...current, juryMembers: [...current.juryMembers, { name: "" }] }))
+              }>+ Jury-Mitglied hinzufügen</button>}
+            </section>
           </div>
         )}
 
@@ -455,7 +528,7 @@ export function ChallengeSetup({ onDone }: { onDone?: () => void }) {
                 </label>
               </fieldset>
             ))}</div>}
-            <div className="review-box"><strong>Bereit zum Anrichten</strong><span>{form.teams.length} Teams · {form.categories.length} Kategorien</span></div>
+            <div className="review-box"><strong>Bereit zum Anrichten</strong><span>{form.teams.length} Teams · {form.juryMembers.length} Jury · {form.categories.length} Kategorien</span></div>
           </div>
         )}
 

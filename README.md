@@ -13,7 +13,7 @@ Primärer Einsatzfall: private Koch-Challenge im Urlaub
 
 ## 1. Produktidee in einem Satz
 
-Voting begleitet eine private Koch-Challenge: Nach jedem Kochabend bewerten die Captains der anderen Teams das Essen in wenigen, passenden Kategorien; bis zur gemeinsamen Siegerehrung bleiben alle Ergebnisse verborgen.
+Voting begleitet eine private Koch-Challenge: Nach jedem Kochabend bewerten die Captains der anderen Teams und optional eine zusätzliche Jury das Essen in wenigen, passenden Kategorien; bis zur gemeinsamen Siegerehrung bleiben alle Ergebnisse verborgen.
 
 ## 2. Ausgangslage und Nutzerproblem
 
@@ -30,14 +30,14 @@ Die Anwendung soll diese Reibung beseitigen, ohne aus dem Urlaub ein Verwaltungs
 
 ## 3. Produktziel
 
-Die Anwendung ermöglicht allen Captains, einen Kochabend direkt und in weniger als einer Minute zu bewerten. Sie sorgt für eine einheitliche Bewertung, hält Zwischenergebnisse geheim und inszeniert am Ende eine einfache, unterhaltsame Siegerehrung.
+Die Anwendung ermöglicht allen Stimmberechtigten, einen Kochabend direkt und in weniger als einer Minute zu bewerten. Sie sorgt für eine einheitliche Bewertung, hält Zwischenergebnisse geheim und inszeniert am Ende eine einfache, unterhaltsame Siegerehrung.
 
 Das Produkt ist erfolgreich, wenn:
 
-- alle Captains ohne Erklärung oder Benutzerkonto abstimmen können;
+- Captains und optionale Jury-Mitglieder ohne Erklärung oder Benutzerkonto abstimmen können;
 - eine vollständige Bewertung auf dem Smartphone höchstens etwa eine Minute dauert;
 - niemand vor der Auflösung Zwischenergebnisse oder Einzelstimmen sieht;
-- der Organisator jederzeit erkennt, welche Captains bereits abgestimmt haben;
+- der Organisator jederzeit erkennt, welche Stimmberechtigten bereits abgestimmt haben;
 - das Gesamtergebnis ohne manuelle Nacharbeit präsentiert werden kann.
 
 ## 4. Empfohlene Abstimmungslogik
@@ -58,6 +58,8 @@ Alternativen wurden bewusst verworfen:
 
 - Pro Team gibt es genau einen Captain.
 - Ein Captain bewertet jeden Kochabend außer dem Abend des eigenen Teams.
+- Optional eingerichtete Jury-Mitglieder gehören zu keinem Team und bewerten jeden Kochabend.
+- Captain- und Jury-Stimmen zählen gleich stark.
 - Bewertet wird je Kategorie auf einer Skala von 1 bis 5.
 - Alle Kategorien müssen beantwortet werden, bevor die Bewertung abgeschickt werden kann.
 - Eine abgegebene Bewertung kann bis zum Schließen des jeweiligen Kochabends geändert werden.
@@ -83,7 +85,7 @@ Das MVP startet mit fünf festen, für ein gemeinsames Abendessen geeigneten Kat
 | Das Auge isst mit | Wie appetitlich sah das Essen aus? |
 | Küchen-Coup | Wie kreativ und stimmig war das Menü? |
 | Punktlandung | Haben Garpunkt, Temperatur und Timing gepasst? |
-| Urlaubslegende | Wie besonders war der gesamte Abend? |
+| Gesamterlebnis | Wie stimmig war der Abend insgesamt? |
 
 Skalenhilfe:
 
@@ -102,9 +104,9 @@ Die fünf Kategorien bilden einen sinnvollen Standard. Der Organisator darf Name
 Der Organisator richtet die Challenge einmalig ein und begleitet ihren Ablauf. Er kann:
 
 - Name der Challenge festlegen;
-- Teams, Captains, Kochreihenfolge und Termine erfassen;
+- Teams, Captains, optionale Jury-Mitglieder, Kochreihenfolge und Termine erfassen;
 - die voreingestellten Kategorien vor dem ersten Voting umbenennen;
-- für jeden Captain einen persönlichen Zugangslink abrufen und teilen;
+- für jeden Captain und jedes Jury-Mitglied einen persönlichen Zugangslink abrufen, teilen, kopieren oder als lokal erzeugten QR-Code anzeigen;
 - einen Kochabend für die Abstimmung öffnen und schließen;
 - den Abstimmungsstatus kontrollieren;
 - die finale Auflösung starten.
@@ -122,14 +124,18 @@ Ein Captain öffnet seinen persönlichen Link und kann:
 
 Andere Gäste benötigen keinen Zugang. Sie beraten ihr Team informell; die verbindliche Stimme gibt der Captain ab.
 
+### Jury
+
+Die optionale Jury besteht aus Gästen ohne eigenes Team. Jedes Jury-Mitglied erhält einen persönlichen Link, bewertet jeden Kochabend und sieht denselben Fortschritt und nach der Auflösung dieselben Ergebnisse wie ein Captain. Jury-Mitglieder können nur während der Vorbereitung angelegt, umbenannt oder entfernt werden.
+
 ## 7. Kernablauf
 
 ### 7.1 Challenge vorbereiten
 
 1. Der Organisator öffnet den geheimen Verwaltungslink.
-2. Er legt Name, Teams, Captain-Namen, Kochtermine und Kochreihenfolge fest.
+2. Er legt Name, Teams, Captain-Namen, optionale Jury-Mitglieder, Kochtermine und Kochreihenfolge fest.
 3. Er prüft bei Bedarf die fünf Kategorien.
-4. Das System erzeugt pro Captain einen persönlichen, nicht erratbaren Link.
+4. Das System erzeugt pro Captain und Jury-Mitglied einen persönlichen, nicht erratbaren Link. Der Organisator kann jeden Zugang zusätzlich als QR-Code anzeigen.
 5. Der Organisator teilt die Links über den ohnehin genutzten Messenger.
 
 Es gibt keine Registrierung, E-Mail-Einladung oder Passwortverwaltung.
@@ -137,19 +143,19 @@ Es gibt keine Registrierung, E-Mail-Einladung oder Passwortverwaltung.
 ### 7.2 Kochabend bewerten
 
 1. Der Organisator öffnet nach dem Essen das Voting für den Abend.
-2. Der Captain öffnet seinen bekannten Link.
+2. Der Captain oder das Jury-Mitglied öffnet den persönlichen Link.
 3. Die Startseite zeigt direkt den aktuell zu bewertenden Kochabend.
-4. Der Captain vergibt in jeder Kategorie 1 bis 5 Punkte.
+4. Die abstimmende Person vergibt in jeder Kategorie 1 bis 5 Punkte.
 5. Vor dem Absenden sieht er eine kompakte Zusammenfassung.
 6. Nach dem Absenden bestätigt die Anwendung die gespeicherte Stimme und zeigt den Fortschritt der Challenge.
 
-Der Captain des kochenden Teams sieht den Abend, kann ihn aber nicht bewerten.
+Der Captain des kochenden Teams sieht den Abend, kann ihn aber nicht bewerten. Die Jury darf jeden Abend bewerten.
 
 ### 7.3 Abstimmung schließen
 
 Am folgenden Tag prüft der Organisator lediglich den Status, zum Beispiel „3 von 4 möglichen Stimmen abgegeben“. Einzelbewertungen und Punktstände bleiben verborgen.
 
-Sind alle Stimmen da, schließt er den Abend. Falls eine Stimme fehlt, kann er den betreffenden Captain außerhalb der Anwendung erinnern oder den Abend trotzdem schließen.
+Sind alle Stimmen da, schließt er den Abend. Falls eine Stimme fehlt, kann er die betreffende Person außerhalb der Anwendung erinnern oder den Abend trotzdem schließen.
 
 ### 7.4 Finale Auflösung
 
@@ -165,7 +171,7 @@ Die Auflösung ist bewusst eine gemeinsame Aktion und kein automatisch versendet
 
 Das Produkt benötigt nur drei schlanke Ansichten.
 
-### Captain-Ansicht
+### Abstimmungsansicht
 
 Mobile Startseite mit:
 
@@ -189,7 +195,7 @@ Eine funktionale Verwaltungsseite mit:
 
 - Challenge-Konfiguration;
 - Teams, Captains und Terminen;
-- Captain-Links;
+- persönliche Captain- und Jury-Zugänge mit Teilen, Kopieren und QR-Code;
 - Status der Kochabende;
 - Anzahl abgegebener Stimmen;
 - Aktionen „Voting öffnen“, „Voting schließen“ und „Ergebnis auflösen“.
@@ -207,7 +213,7 @@ Eine zusätzliche Navigation, Dashboards oder ein allgemeiner Einstellungsbereic
 ### Kochabend
 
 - Bevorstehend – noch nicht abstimmbar.
-- Offen – berechtigte Captains können abstimmen und ihre Stimme ändern.
+- Offen – berechtigte Captains und Jury-Mitglieder können abstimmen und ihre Stimme ändern.
 - Geschlossen – Stimmen können nicht mehr geändert werden.
 
 Ein geschlossener Abend darf vom Organisator wieder geöffnet werden, solange die Challenge noch nicht aufgelöst ist. Das ist die einzige notwendige Korrekturmöglichkeit.
@@ -215,21 +221,21 @@ Ein geschlossener Abend darf vom Organisator wieder geöffnet werden, solange di
 ## 10. Leitplanken für Fairness und Vertrauen
 
 - Kein Team kann sich selbst bewerten.
-- Individuelle Bewertungen werden nie anderen Captains angezeigt.
+- Individuelle Bewertungen werden nie anderen Stimmberechtigten angezeigt.
 - Auch der Organisator sieht vor der Auflösung nur den Teilnahme-, nicht den Punktestand.
-- Persönliche Links sind nicht erratbar und dürfen nicht zwischen Captains weitergegeben werden.
+- Persönliche Links sind nicht erratbar und dürfen nicht zwischen Personen weitergegeben werden.
 - Speichern und Aktualisieren einer Stimme werden eindeutig bestätigt.
-- Ein Captain kann pro Kochabend nur eine aktive Bewertung haben.
+- Eine stimmberechtigte Person kann pro Kochabend nur eine aktive Bewertung haben.
 - Die Ergebnisauswertung ist für alle Teams identisch.
 - Es gibt keine öffentliche, ohne Teilnehmerlink erreichbare Ergebnisliste.
 
-Die Anwendung verarbeitet nur Captain-Namen beziehungsweise frei gewählte Anzeigenamen. Weitere persönliche Daten sind nicht erforderlich.
+Die Anwendung verarbeitet nur Captain- und Jury-Namen beziehungsweise frei gewählte Anzeigenamen. Weitere persönliche Daten sind nicht erforderlich.
 
 ## 11. Technischer Produktzuschnitt
 
 Die Anwendung ist eine responsive, mobile-first Web-Anwendung auf Cloudflare. Für den Produktumfang reichen:
 
-- eine Weboberfläche für Captains und Organisator;
+- eine Weboberfläche für Captains, Jury und Organisator;
 - eine serverseitige API;
 - eine kleine persistente Datenbank, beispielsweise Cloudflare D1;
 - zufällige geheime Links als einfache Zugangsmechanik.
@@ -242,9 +248,10 @@ Es wird kein eigenes Backup aufgebaut. Ein Verlust der Daten wäre ärgerlich, a
 
 ### Muss enthalten
 
-- eine Challenge mit Teams, Captains, Kochreihenfolge und Terminen einrichten;
+- eine Challenge mit Teams, Captains, optionaler Jury, Kochreihenfolge und Terminen einrichten;
 - fünf voreingestellte Kategorien vor Challenge-Start umbenennen;
-- geheime Verwaltungs- und Captain-Zugänge ohne Benutzerkonten;
+- geheime Verwaltungs-, Captain- und Jury-Zugänge ohne Benutzerkonten;
+- persönliche Zugänge lokal im Browser als QR-Code anzeigen;
 - Kochabende manuell öffnen, schließen und bei Bedarf wieder öffnen;
 - Selbstbewertung technisch verhindern;
 - mobile Bewertung mit 1 bis 5 Punkten je Kategorie;
@@ -259,7 +266,7 @@ Es wird kein eigenes Backup aufgebaut. Ein Verlust der Daten wäre ärgerlich, a
 
 - Registrierung, Passwörter, E-Mail oder Social Login;
 - mehrere Challenges pro Organisator als sichtbare Produktfunktion;
-- mehrere Captains oder Einzelstimmen aller Gäste;
+- mehrere Captains pro Team oder Einzelstimmen aller Gäste außerhalb der optionalen Jury;
 - frei konfigurierbare Skalen, Kategorieanzahl oder Gewichtungen;
 - öffentliche Ranglisten oder Live-Zwischenstände;
 - Kommentare, Chat, Fotos, Rezepte oder Menüverwaltung;
@@ -285,7 +292,7 @@ Es wird kein eigenes Backup aufgebaut. Ein Verlust der Daten wäre ärgerlich, a
 ### Annahmen für das MVP
 
 - Es gibt mindestens drei Teams und jeweils genau einen Captain.
-- Alle Captains nutzen ein aktuelles Smartphone mit Internetzugang.
+- Alle Stimmberechtigten nutzen ein aktuelles Smartphone mit Internetzugang.
 - Die Gruppe ist klein und grundsätzlich vertrauenswürdig.
 - Der Organisator teilt Links über einen vorhandenen Messenger.
 - Die Challenge dauert nur einige Tage oder Wochen.
@@ -295,11 +302,11 @@ Es wird kein eigenes Backup aufgebaut. Ein Verlust der Daten wäre ärgerlich, a
 
 | Risiko | Antwort im MVP |
 |---|---|
-| Captain verliert seinen Link | Organisator teilt denselben Link erneut |
-| Captain öffnet den Link eines anderen | persönlicher Link zeigt den Captain-Namen deutlich; keine aufwendige Identitätsprüfung |
+| Person verliert ihren Link | Organisator teilt denselben Link erneut |
+| Person öffnet den Link eines anderen | persönlicher Link zeigt Name und Rolle deutlich; keine aufwendige Identitätsprüfung |
 | Eine Stimme fehlt | Status macht dies sichtbar; Organisator erinnert manuell oder schließt trotzdem |
 | Ein Kochabend wird verschoben | Organisator passt den Termin an, solange er noch bevorstehend ist |
-| Falsche Bewertung abgeschickt | Captain kann sie bis zum Schließen ändern |
+| Falsche Bewertung abgeschickt | Stimmberechtigte Person kann sie bis zum Schließen ändern |
 | Organisator schließt zu früh | Abend kann vor der finalen Auflösung wieder geöffnet werden |
 | Gruppe versucht taktisch zu bewerten | Zwischenstände und Einzelstimmen bleiben verborgen; formale Manipulationssicherheit ist nicht Ziel des Produkts |
 
@@ -307,7 +314,7 @@ Es wird kein eigenes Backup aufgebaut. Ein Verlust der Daten wäre ärgerlich, a
 
 Der erste echte Einsatz ist zugleich der Produkttest. Beobachtet werden sollte:
 
-- Finden Captains ohne Erklärung ihr aktuelles Voting?
+- Finden Captains und Jury ohne Erklärung ihr aktuelles Voting?
 - Verstehen sie die Kategorien und die Bedeutung der Skala?
 - Schließen alle eine Abstimmung in ungefähr einer Minute ab?
 - Muss der Organisator häufig erinnern oder Links erneut verteilen?

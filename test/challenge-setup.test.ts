@@ -38,6 +38,7 @@ interface ChallengeResponse {
       captainName: string;
       dinner: { id: string; date: string; status: "upcoming" | "open" | "closed" };
     }>;
+    juryMembers: Array<{ id: string; name: string }>;
     categories: Array<{
       id: string;
       position: number;
@@ -71,6 +72,7 @@ function editablePayload(challenge: ChallengeResponse["challenge"]) {
       captainName: team.captainName,
       dinnerDate: team.dinner.date,
     })),
+    juryMembers: challenge.juryMembers.map((member) => ({ ...member })),
     categories: challenge.categories.map((category) => ({
       id: category.id,
       name: category.name,
@@ -85,6 +87,13 @@ beforeEach(async () => {
 });
 
 describe("challenge setup API", () => {
+  it("uses Gesamterlebnis as the fifth default category", () => {
+    expect(DEFAULT_CATEGORIES[4]).toEqual({
+      name: "Gesamterlebnis",
+      question: "Wie stimmig war der Abend insgesamt?",
+    });
+  });
+
   it("starts empty and creates a complete challenge atomically", async () => {
     const initial = await worker.fetch(
       apiRequest("/api/admin/challenge", adminCookie),
@@ -106,10 +115,60 @@ describe("challenge setup API", () => {
       `SELECT
          (SELECT COUNT(*) FROM challenges) AS challenges,
          (SELECT COUNT(*) FROM teams) AS teams,
+         (SELECT COUNT(*) FROM voters) AS voters,
          (SELECT COUNT(*) FROM dinners) AS dinners,
          (SELECT COUNT(*) FROM categories) AS categories`,
-    ).first<{ challenges: number; teams: number; dinners: number; categories: number }>();
-    expect(counts).toEqual({ challenges: 1, teams: 3, dinners: 3, categories: 5 });
+    ).first<{ challenges: number; teams: number; voters: number; dinners: number; categories: number }>();
+    expect(counts).toEqual({ challenges: 1, teams: 3, voters: 3, dinners: 3, categories: 5 });
+  });
+
+  it("creates, renames and removes optional jury members with unique names", async () => {
+    const created = (await save({
+      ...setup,
+      juryMembers: [{ name: "Dora" }, { name: "Enzo" }],
+    })).payload.challenge;
+
+    expect(created.juryMembers.map((member) => member.name)).toEqual(["Dora", "Enzo"]);
+    const edited = editablePayload(created);
+    edited.juryMembers[0].name = "Dori";
+    edited.juryMembers = edited.juryMembers.slice(0, 1);
+    const saved = await save(edited);
+    expect(saved.response.status).toBe(200);
+    expect(saved.payload.challenge.juryMembers).toEqual([
+      expect.objectContaining({ id: created.juryMembers[0].id, name: "Dori" }),
+    ]);
+
+    const duplicate = editablePayload(saved.payload.challenge);
+    duplicate.juryMembers = [
+      { id: "duplicate-jury-1", name: " Jury " },
+      { id: "duplicate-jury-2", name: "jury" },
+    ];
+    const invalid = await worker.fetch(request(duplicate), env);
+    expect(invalid.status).toBe(422);
+    expect(await invalid.json()).toMatchObject({
+      error: {
+        fieldErrors: {
+          "juryMembers.0.name": expect.any(String),
+          "juryMembers.1.name": expect.any(String),
+        },
+      },
+    });
+  });
+
+  it("locks the jury configuration when the first dinner opens", async () => {
+    const created = (await save({ ...setup, juryMembers: [{ name: "Dora" }] })).payload.challenge;
+    await env.DB
+      .prepare("UPDATE challenges SET status = 'running' WHERE id = ?")
+      .bind(created.id)
+      .run();
+
+    const changed = editablePayload({ ...created, status: "running" });
+    changed.juryMembers[0].name = "Dori";
+    const response = await worker.fetch(request(changed), env);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      error: { code: "CONFIGURATION_LOCKED", message: expect.stringContaining("Jury") },
+    });
   });
 
   it("returns field errors and keeps the database empty for invalid input", async () => {
